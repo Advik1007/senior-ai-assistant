@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import type { Contact } from "@/lib/db/schema";
 import { AppShell } from "@/components/AppShell";
 import { BigButton } from "@/components/BigButton";
@@ -8,10 +8,19 @@ import { useApp } from "@/components/providers/app-provider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { getBookingHistorySnapshot } from "@/lib/storage/bookings";
+import { subscribeStore } from "@/lib/storage/store-events";
+
+const EMPTY_HISTORY: import("@/lib/db/schema").BookingRecord[] = [];
 
 export default function SettingsPage() {
   const { prefs, setPrefs, profile, setProfile, contacts, setContacts, strings } =
     useApp();
+  const history = useSyncExternalStore(
+    subscribeStore,
+    getBookingHistorySnapshot,
+    () => EMPTY_HISTORY,
+  );
   const [saved, setSaved] = useState(false);
 
   function updateContact(id: string, patch: Partial<Contact>) {
@@ -170,6 +179,23 @@ export default function SettingsPage() {
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="rounded-3xl border-4 border-[#0B1F3A] bg-white p-4 high-contrast:border-white high-contrast:bg-black">
+        <h2 className="mb-3 text-2xl font-extrabold">Booking history</h2>
+        {history.length === 0 ? (
+          <p className="text-xl">No requests yet. Confirmed bookings will appear only after a real company API accepts them.</p>
+        ) : (
+          <ul className="space-y-3 text-xl">
+            {history.map((item) => (
+              <li key={item.id}>
+                <strong>{item.kind.replace("_", " ")}</strong> — {item.status}
+                <br />
+                {item.summary}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <BigButton tone="call" onClick={saveAll}>

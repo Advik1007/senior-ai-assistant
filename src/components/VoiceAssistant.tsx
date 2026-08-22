@@ -20,18 +20,28 @@ import { ConfirmCallDialog } from "@/components/ConfirmCallDialog";
 import { VoiceStatus, type VoicePhase } from "@/components/VoiceStatus";
 import { Textarea } from "@/components/ui/textarea";
 
+function withQuery(path: string, args: Record<string, string | number | undefined>) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(args)) {
+    if (value === undefined || value === "") continue;
+    params.set(key, String(value));
+  }
+  const query = params.toString();
+  return query ? `${path}?${query}` : path;
+}
+
 function toolPath(tool: ToolCall): string | null {
   switch (tool.name) {
     case "search_cabs":
-      return "/services/cab";
+      return withQuery("/services/cab", tool.args);
     case "search_flights":
-      return "/services/flight";
+      return withQuery("/services/flight", tool.args);
     case "search_bill_options":
-      return "/services/bills";
+      return withQuery("/services/bills", tool.args);
     case "search_nurse_services":
-      return "/services/nurse";
+      return withQuery("/services/nurse", tool.args);
     case "search_blood_tests":
-      return "/services/blood-test";
+      return withQuery("/services/blood-test", tool.args);
     default:
       return null;
   }

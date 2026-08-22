@@ -26,6 +26,17 @@ function includesAny(text: string, words: string[]): boolean {
   return words.some((w) => text.includes(w));
 }
 
+function extractToPlace(text: string): string | undefined {
+  const match = text.match(/\bto\s+(?:the\s+)?(.+?)(?:\s+tomorrow|\s+today|\s+at\s+\d|$)/i);
+  const place = match?.[1]?.trim();
+  return place || undefined;
+}
+
+function extractWhen(text: string): string | undefined {
+  const match = text.match(/\b(tomorrow.*|today.*|at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?)/i);
+  return match?.[1]?.trim();
+}
+
 /**
  * Small on-device interpreter for this first version.
  * A later step can swap this for a server-side model that returns
@@ -94,18 +105,22 @@ export function interpretUserSpeech(
   }
 
   if (includesAny(text, ["cab", "taxi", "uber", "ola", "auto"])) {
+    const destination = extractToPlace(text);
+    const when = extractWhen(text);
     return {
       spokenText:
-        "I can help look for a cab. Cab booking needs an authorized company API before any ride can be booked.",
-      toolCall: { name: "search_cabs", args: {} },
+        "I opened cab booking. Fill any missing details, then search. Nothing is booked until a real company API confirms.",
+      toolCall: { name: "search_cabs", args: { destination, when } },
     };
   }
 
-  if (includesAny(text, ["flight", "plane", "airport", "fly"])) {
+  if (includesAny(text, ["flight", "plane", "fly "]) || /\bfly to\b/.test(text)) {
+    const destination = extractToPlace(text);
+    const date = extractWhen(text);
     return {
       spokenText:
-        "I can help look for a flight. Flight booking needs an authorized airline or travel API before any ticket can be bought.",
-      toolCall: { name: "search_flights", args: {} },
+        "I opened flight booking. Fill any missing details, then search. Tickets cannot be bought until a real travel API is connected.",
+      toolCall: { name: "search_flights", args: { destination, date } },
     };
   }
 
@@ -115,7 +130,7 @@ export function interpretUserSpeech(
       : "electricity";
     return {
       spokenText:
-        "I can help with utility bills. Paying a bill needs an authorized bill-pay API. UNK will never pay without you confirming twice.",
+        "I opened bill payment. UNK will never pay without you confirming twice, and only after a real bill-pay API is connected.",
       toolCall: { name: "search_bill_options", args: { billType } },
     };
   }
@@ -123,16 +138,20 @@ export function interpretUserSpeech(
   if (includesAny(text, ["nurse", "caregiver", "caretaker", "home care"])) {
     return {
       spokenText:
-        "I can help find a home-care nurse. This is not medical advice. Booking needs an authorized healthcare API.",
-      toolCall: { name: "search_nurse_services", args: {} },
+        "I opened nurse booking. This is not medical advice. Booking needs an authorized healthcare API.",
+      toolCall: { name: "search_nurse_services", args: { when: extractWhen(text) } },
     };
   }
 
   if (includesAny(text, ["blood test", "blood", "lab", "pathology"])) {
+    const collection = text.includes("home") ? "home" : text.includes("lab") ? "lab" : undefined;
     return {
       spokenText:
-        "I can help find a blood test. This is not medical advice. Booking needs an authorized lab API.",
-      toolCall: { name: "search_blood_tests", args: {} },
+        "I opened blood test booking. This is not medical advice. Booking needs an authorized lab API.",
+      toolCall: {
+        name: "search_blood_tests",
+        args: { collection, when: extractWhen(text) },
+      },
     };
   }
 

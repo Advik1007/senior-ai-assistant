@@ -42,4 +42,4 @@ numbers in **Settings** before calling.
 - Help — UNK greets you and listens
 - Talk to UNK — voice plus typing
 - Settings — text size, language, voice speed, contrast, contacts
-- Service pages — clearly marked **API connection required**
+- Service pages — forms that collect details, search through a server API, and require two confirmations. They stay **API connection required** until you add real credentials. Nothing is shown as booked without a provider confirmation id.
