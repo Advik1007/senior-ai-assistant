@@ -75,6 +75,20 @@ The test endpoint is disabled in production. Production authentication code
 should call the server-only functions in `src/lib/email/service.ts` after it
 creates and stores expiring, single-use verification or password-reset tokens.
 
+## Deploy to Vercel
+
+1. Push this repository to GitHub. The Next.js app lives in `src/app/` at the
+   project root (same folder as `package.json`).
+2. In Vercel, import the GitHub repo and use these defaults:
+   - **Framework:** Next.js
+   - **Root Directory:** `.` (repository root)
+   - **Build Command:** `npm run build`
+   - **Output:** automatic
+3. Add environment variables in the Vercel dashboard (never commit secrets):
+   `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `CONTACT_EMAIL`, `APP_URL`, and any
+   optional `AI_API_KEY`.
+4. Redeploy after changing environment variables.
+
 ## First version screens
 
 - Home — large buttons for talk, family, help, and services
