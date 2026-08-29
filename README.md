@@ -35,6 +35,46 @@ Then open [http://127.0.0.1:43141](http://127.0.0.1:43141).
 For voice, use Chrome or Edge and allow the microphone. Add family phone
 numbers in **Settings** before calling.
 
+## Resend email
+
+Copy `.env.example` to `.env.local` and configure:
+
+```env
+RESEND_API_KEY=
+RESEND_FROM_EMAIL="UNK AI <onboarding@resend.dev>"
+CONTACT_EMAIL=
+EMAIL_TEST_RECIPIENT=
+APP_URL=http://127.0.0.1:43141
+```
+
+- Use a newly created Resend key for `RESEND_API_KEY`.
+- `CONTACT_EMAIL` receives messages submitted on the Help page.
+- `EMAIL_TEST_RECIPIENT` receives development test emails.
+- `onboarding@resend.dev` is suitable for Resend testing. Use an address on
+  your verified domain for production.
+- `.env.local` is ignored by Git and must never be committed.
+
+Restart the development server after changing environment variables. To test
+each reusable template while the server is running:
+
+```bash
+curl -X POST http://127.0.0.1:43141/api/email/test \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"welcome"}'
+
+curl -X POST http://127.0.0.1:43141/api/email/test \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"verification"}'
+
+curl -X POST http://127.0.0.1:43141/api/email/test \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"password-reset"}'
+```
+
+The test endpoint is disabled in production. Production authentication code
+should call the server-only functions in `src/lib/email/service.ts` after it
+creates and stores expiring, single-use verification or password-reset tokens.
+
 ## First version screens
 
 - Home — large buttons for talk, family, help, and services

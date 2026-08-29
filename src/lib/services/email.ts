@@ -1,4 +1,4 @@
-import { ServiceNotConnectedError } from "@/lib/services/types";
+import { sendBookingEmail } from "@/lib/email/service";
 
 /**
  * Confirmation emails should be sent only after a real booking
@@ -13,5 +13,5 @@ export async function sendBookingConfirmationEmail(input: {
   if (!input.confirmationId) {
     throw new Error("Refusing to send email without a real confirmation id.");
   }
-  throw new ServiceNotConnectedError("Email");
+  await sendBookingEmail(input);
 }
