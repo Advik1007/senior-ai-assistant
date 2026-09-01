@@ -25,7 +25,7 @@ export function AppShell({
       <header className="mb-4 flex items-center gap-3">
         {showBack ? (
           <Link
-            href="/"
+            href="/home"
             className="inline-flex min-h-14 min-w-14 items-center justify-center rounded-2xl border-4 border-[#0B1F3A] bg-white px-3 text-xl font-bold text-[#0B1F3A] high-contrast:border-white high-contrast:bg-black high-contrast:text-white"
           >
             <ArrowLeft aria-hidden className="size-8" />

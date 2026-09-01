@@ -57,6 +57,20 @@ export function saveContacts(contacts: Contact[]): void {
   emitStore();
 }
 
+export function addContact(
+  contact: Omit<Contact, "id"> & { id?: string },
+): Contact[] {
+  const next = [
+    ...loadContacts(),
+    {
+      ...contact,
+      id: contact.id ?? crypto.randomUUID(),
+    },
+  ];
+  saveContacts(next);
+  return next;
+}
+
 export function findContactByRelationship(
   contacts: Contact[],
   relationship: string,

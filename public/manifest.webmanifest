@@ -1,0 +1,10 @@
+{
+  "name": "UNK AI",
+  "short_name": "UNK AI",
+  "description": "A simple assistant for everyday help, calling family, and services.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F4F1E8",
+  "theme_color": "#0B4F8A",
+  "orientation": "portrait"
+}

@@ -4,15 +4,24 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Mic } from "lucide-react";
 import { interpretUserSpeech } from "@/lib/ai/local-assistant";
+import { aiPhrase } from "@/lib/ai/phrases";
+import {
+  appendChatHistory,
+  loadChatHistory,
+  loadMemory,
+  remember,
+} from "@/lib/ai/memory";
 import type { ToolCall } from "@/lib/ai/tools";
 import type { Contact } from "@/lib/db/schema";
 import { hasUsablePhoneNumber, startPhoneCall } from "@/lib/phone";
 import {
   getSpeechRecognition,
   speakText,
+  speechLocale,
   stopSpeaking,
   type SpeechRecognitionLike,
 } from "@/lib/speech";
+import { doctorsNearMeUrl, directionsUrl } from "@/lib/maps";
 import { findContactByName, findContactByRelationship } from "@/lib/storage/contacts";
 import { useApp } from "@/components/providers/app-provider";
 import { BigButton } from "@/components/BigButton";
@@ -20,28 +29,49 @@ import { ConfirmCallDialog } from "@/components/ConfirmCallDialog";
 import { VoiceStatus, type VoicePhase } from "@/components/VoiceStatus";
 import { Textarea } from "@/components/ui/textarea";
 
-function withQuery(path: string, args: Record<string, string | number | undefined>) {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(args)) {
-    if (value === undefined || value === "") continue;
-    params.set(key, String(value));
-  }
-  const query = params.toString();
-  return query ? `${path}?${query}` : path;
-}
-
 function toolPath(tool: ToolCall): string | null {
   switch (tool.name) {
-    case "search_cabs":
-      return withQuery("/services/cab", tool.args);
-    case "search_flights":
-      return withQuery("/services/flight", tool.args);
-    case "search_bill_options":
-      return withQuery("/services/bills", tool.args);
-    case "search_nurse_services":
-      return withQuery("/services/nurse", tool.args);
-    case "search_blood_tests":
-      return withQuery("/services/blood-test", tool.args);
+    case "open_medical":
+      return "/medical";
+    case "open_doctor_nearby":
+      return "/doctor?nearby=1";
+    case "open_shopping":
+      return "/shopping";
+    case "open_routine":
+      return "/routine";
+    case "open_help":
+      return "/help";
+    case "open_emergency":
+      return "/emergency";
+    case "open_directions": {
+      const dest = tool.args.destination || "hospital";
+      const mode = tool.args.mode || "driving";
+      if (typeof window !== "undefined") {
+        window.open(directionsUrl(dest, mode), "_blank", "noopener,noreferrer");
+      }
+      return null;
+    }
+    case "create_reminder":
+      return "/routine";
+    default:
+      return null;
+  }
+}
+
+function routeForTalkAction(type: string): string | null {
+  switch (type) {
+    case "open_medical":
+      return "/medical";
+    case "open_doctor_nearby":
+      return "/doctor?nearby=1";
+    case "open_shopping":
+      return "/shopping";
+    case "open_routine":
+      return "/routine";
+    case "open_emergency":
+      return "/emergency";
+    case "open_help":
+      return "/help";
     default:
       return null;
   }
@@ -54,7 +84,7 @@ export function VoiceAssistant({
   mode: "help" | "talk";
   greeting: string;
 }) {
-  const { contacts, prefs, strings } = useApp();
+  const { contacts, prefs, strings, profile } = useApp();
   const router = useRouter();
   const [phase, setPhase] = useState<VoicePhase>("idle");
   const [log, setLog] = useState<string[]>([]);
@@ -106,28 +136,28 @@ export function VoiceAssistant({
       pendingCallRef.current = null;
       if (!hasUsablePhoneNumber(contact.phoneNumber)) {
         speak(
-          `${contact.name} has no phone number yet. Please add it in Settings.`,
+          aiPhrase(prefs.language, "ai.noPhone", { name: contact.name }),
           mode === "help",
         );
         return;
       }
-      speak(`Calling ${contact.name} now.`, false);
+      speak(aiPhrase(prefs.language, "ai.calling", { name: contact.name }), false);
       startPhoneCall(contact.phoneNumber);
     },
-    [mode, speak],
+    [mode, prefs.language, speak],
   );
 
   const handleUtterance = useCallback(
     (transcript: string) => {
       const said = transcript.trim();
       if (!said) {
-        speak("I did not hear that. Please say it again.", mode === "help");
+        speak(aiPhrase(prefs.language, "ai.didNotHear"), mode === "help");
         return;
       }
       addLog(`You: ${said}`);
       setPhase("processing");
 
-      const interpreted = interpretUserSpeech(said, contacts);
+      const interpreted = interpretUserSpeech(said, contacts, prefs.language);
 
       if (interpreted.spokenText === "YES_CONFIRM") {
         if (pendingCallRef.current) {
@@ -136,11 +166,11 @@ export function VoiceAssistant({
         }
         if (offerFamilyRef.current) {
           offerFamilyRef.current = false;
-          speak("Opening your family list.", false);
+          speak(aiPhrase(prefs.language, "ai.openingFamily"), false);
           router.push("/family");
           return;
         }
-        speak("Okay.", mode === "help");
+        speak(aiPhrase(prefs.language, "ai.okay"), mode === "help");
         return;
       }
 
@@ -148,7 +178,7 @@ export function VoiceAssistant({
         setPendingCall(null);
         pendingCallRef.current = null;
         offerFamilyRef.current = false;
-        speak("Okay. What else do you need?", mode === "help");
+        speak(aiPhrase(prefs.language, "ai.whatElse"), mode === "help");
         return;
       }
 
@@ -167,14 +197,83 @@ export function VoiceAssistant({
         }
       }
 
-      offerFamilyRef.current = Boolean(interpreted.offerFamilyCall);
-      const path = interpreted.toolCall ? toolPath(interpreted.toolCall) : null;
-      speak(interpreted.spokenText, mode === "help" && !path);
-      if (path) {
-        window.setTimeout(() => router.push(path), 1600);
+      if (interpreted.toolCall) {
+        offerFamilyRef.current = false;
+        const path = toolPath(interpreted.toolCall);
+        speak(interpreted.spokenText, false);
+        if (path) window.setTimeout(() => router.push(path), 1600);
+        return;
+      }
+
+      const useTalkApi = mode === "talk" || mode === "help";
+      if (useTalkApi && !interpreted.spokenText && !interpreted.toolCall) {
+        void (async () => {
+          try {
+            const memory = loadMemory();
+            const history = loadChatHistory();
+            const res = await fetch("/api/talk", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                message: said,
+                lang: prefs.language,
+                userName:
+                  profile.displayName ||
+                  aiPhrase(prefs.language, "ai.friend"),
+                history,
+                memory,
+              }),
+            });
+            const data = (await res.json()) as {
+              reply?: string;
+              action?: { type: string };
+              memoryUpdates?: string[];
+            };
+            const reply =
+              data.reply ||
+              aiPhrase(prefs.language, "ai.default", {
+                name:
+                  profile.displayName ||
+                  aiPhrase(prefs.language, "ai.friend"),
+              });
+            if (data.memoryUpdates?.length) {
+              for (const fact of data.memoryUpdates) remember(fact);
+            }
+            appendChatHistory({ role: "user", content: said });
+            appendChatHistory({ role: "assistant", content: reply });
+            speak(reply, true);
+            if (data.action?.type === "open_doctor_nearby") {
+              window.setTimeout(() => {
+                window.open(doctorsNearMeUrl(), "_blank", "noopener,noreferrer");
+              }, 1600);
+            } else {
+              const path = data.action?.type
+                ? routeForTalkAction(data.action.type)
+                : null;
+              if (path) window.setTimeout(() => router.push(path), 1600);
+            }
+          } catch {
+            speak(aiPhrase(prefs.language, "ai.error"), true);
+          }
+        })();
+        return;
+      }
+
+      if (interpreted.spokenText) {
+        offerFamilyRef.current = Boolean(interpreted.offerFamilyCall);
+        speak(interpreted.spokenText, mode === "help" || mode === "talk");
       }
     },
-    [addLog, confirmCall, contacts, mode, router, speak],
+    [
+      addLog,
+      confirmCall,
+      contacts,
+      mode,
+      prefs.language,
+      profile.displayName,
+      router,
+      speak,
+    ],
   );
 
   const startListening = useCallback(() => {
@@ -186,7 +285,7 @@ export function VoiceAssistant({
       return;
     }
     recognitionRef.current = rec;
-    rec.lang = prefs.language === "hi" ? "hi-IN" : "en-IN";
+    rec.lang = speechLocale(prefs.language);
     rec.interimResults = false;
     rec.continuous = false;
     rec.maxAlternatives = 1;
@@ -279,8 +378,7 @@ export function VoiceAssistant({
         {phase === "listening" ? strings.stop : strings.tapToSpeak}
       </BigButton>
 
-      {mode === "talk" ? (
-        <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3">
           <label className="text-xl font-bold" htmlFor="unk-type">
             {strings.typeHere}
           </label>
@@ -300,7 +398,6 @@ export function VoiceAssistant({
             {strings.send}
           </BigButton>
         </div>
-      ) : null}
 
       <ConfirmCallDialog
         contact={pendingCall}

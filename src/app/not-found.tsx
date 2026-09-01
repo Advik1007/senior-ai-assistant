@@ -5,7 +5,7 @@ export default function NotFound() {
   return (
     <AppShell title="Page not found">
       <p className="text-2xl">That screen does not exist.</p>
-      <BigButton href="/" tone="primary">
+      <BigButton href="/home" tone="primary">
         Home
       </BigButton>
     </AppShell>

@@ -17,6 +17,7 @@ export type Relationship =
   | "spouse"
   | "grandchild"
   | "friend"
+  | "caregiver"
   | "other";
 
 export type Contact = {
@@ -28,10 +29,13 @@ export type Contact = {
   isTrusted: boolean;
 };
 
+import type { AppLanguage } from "@/lib/languages";
+
 export type UserProfile = {
   displayName: string;
   email: string;
-  preferredLanguage: "en" | "hi";
+  phone: string;
+  preferredLanguage: AppLanguage;
 };
 
 export type TextSize = "large" | "extra-large" | "biggest";
@@ -42,7 +46,7 @@ export type AccessibilityPreferences = {
   accessibilityMode: boolean;
   /** Speech rate for text-to-speech. 0.7 is slow, 1 is normal. */
   voiceSpeed: number;
-  language: "en" | "hi";
+  language: AppLanguage;
 };
 
 export type BookingStatus =

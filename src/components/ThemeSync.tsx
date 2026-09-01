@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useApp } from "@/components/providers/app-provider";
+import { languageByCode } from "@/lib/languages";
 
 /** Applies text size, contrast, and language to the document. */
 export function ThemeSync() {
@@ -10,7 +11,9 @@ export function ThemeSync() {
   useEffect(() => {
     if (!ready) return;
     const root = document.documentElement;
-    root.lang = prefs.language === "hi" ? "hi" : "en";
+    const meta = languageByCode(prefs.language);
+    root.lang = meta.htmlLang;
+    root.dir = meta.rtl ? "rtl" : "ltr";
     root.classList.toggle("high-contrast", prefs.highContrast);
     root.dataset.textSize = prefs.textSize;
     root.dataset.a11y = prefs.accessibilityMode ? "on" : "off";

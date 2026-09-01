@@ -95,15 +95,16 @@ export function verificationEmail(
   verificationUrl: string,
 ): EmailTemplate {
   return {
-    subject: "Verify your UNK AI email",
+    subject: "Confirm your UNK AI sign-in",
     html: layout({
-      preview: "Verify your email address for UNK AI.",
-      heading: "Verify your email",
-      body: `<p style="margin:0">Hi ${escapeHtml(name || "there")}, please confirm that this email address belongs to you.</p>
+      preview: "Was this you? Confirm your UNK AI sign-in.",
+      heading: "Was this you?",
+      body: `<p style="margin:0">Hi ${escapeHtml(name || "there")}, someone is trying to sign in to UNK AI with this email address.</p>
+        <p style="margin:18px 0 0">If this was you, use the button below to confirm. If it was not you, you can safely ignore this email — your account stays protected.</p>
         <p style="margin:18px 0 0">This link expires for your security.</p>`,
-      action: { label: "Verify email", url: verificationUrl },
+      action: { label: "Yes, it was me", url: verificationUrl },
     }),
-    text: `Hi ${name || "there"},\n\nVerify your UNK AI email:\n${verificationUrl}\n\nThis link expires for your security.`,
+    text: `Hi ${name || "there"},\n\nSomeone is trying to sign in to UNK AI with this email.\n\nIf this was you, confirm here:\n${verificationUrl}\n\nIf not, ignore this email. This link expires for your security.`,
   };
 }
 

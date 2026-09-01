@@ -1,13 +1,19 @@
 import { NextResponse } from "next/server";
+import { isAppLanguage, type AppLanguage } from "@/lib/languages";
 import {
   EmailConfigurationError,
   EmailDeliveryError,
   sendEmailVerification,
+  sendNewDeviceLoginAlert,
   sendPasswordResetEmail,
   sendWelcomeEmail,
 } from "@/lib/email/service";
 
-type TestKind = "welcome" | "verification" | "password-reset";
+type TestKind =
+  | "welcome"
+  | "verification"
+  | "password-reset"
+  | "device-login";
 
 export async function POST(request: Request) {
   if (process.env.NODE_ENV === "production") {
@@ -24,8 +30,13 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = (await request.json()) as { kind?: TestKind };
+    const body = (await request.json()) as {
+      kind?: TestKind;
+      lang?: string;
+    };
     const kind = body.kind || "welcome";
+    const lang: AppLanguage =
+      body.lang && isAppLanguage(body.lang) ? body.lang : "en";
 
     if (kind === "welcome") {
       await sendWelcomeEmail({ to: recipient, name: "UNK AI Tester" });
@@ -40,6 +51,19 @@ export async function POST(request: Request) {
         to: recipient,
         name: "UNK AI Tester",
         resetUrl: `${appUrl}/reset-password?token=development-test-token`,
+      });
+    } else if (kind === "device-login") {
+      await sendNewDeviceLoginAlert({
+        to: recipient,
+        userName: "UNK AI Tester",
+        lang,
+        deviceName: "MacBook Air",
+        browser: "Chrome",
+        location: "Mumbai, India",
+        time: new Date().toLocaleString("en-IN", {
+          dateStyle: "medium",
+          timeStyle: "short",
+        }),
       });
     } else {
       return NextResponse.json(

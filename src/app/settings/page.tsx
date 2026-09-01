@@ -1,20 +1,35 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
 import type { Contact } from "@/lib/db/schema";
+import {
+  clearMemory,
+  deleteMemoryFact,
+  isMemoryEnabled,
+  loadMemory,
+  setMemoryEnabled,
+} from "@/lib/ai/memory";
 import { AppShell } from "@/components/AppShell";
 import { BigButton } from "@/components/BigButton";
 import { useApp } from "@/components/providers/app-provider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { LANGUAGES } from "@/lib/languages";
 import { getBookingHistorySnapshot } from "@/lib/storage/bookings";
 import { subscribeStore } from "@/lib/storage/store-events";
+import {
+  restartOnboardingFromLanguage,
+  restartSetupWizard,
+} from "@/lib/storage/onboarding";
+import { logoutSession } from "@/lib/auth/client-session";
 
 const EMPTY_HISTORY: import("@/lib/db/schema").BookingRecord[] = [];
 
 export default function SettingsPage() {
-  const { prefs, setPrefs, profile, setProfile, contacts, setContacts, strings } =
+  const router = useRouter();
+  const { prefs, setPrefs, profile, setProfile, contacts, setContacts, strings, logout } =
     useApp();
   const history = useSyncExternalStore(
     subscribeStore,
@@ -22,6 +37,13 @@ export default function SettingsPage() {
     () => EMPTY_HISTORY,
   );
   const [saved, setSaved] = useState(false);
+  const [memoryOn, setMemoryOn] = useState(true);
+  const [memories, setMemories] = useState<string[]>([]);
+
+  useEffect(() => {
+    setMemoryOn(isMemoryEnabled());
+    setMemories(loadMemory());
+  }, []);
 
   function updateContact(id: string, patch: Partial<Contact>) {
     setContacts(contacts.map((c) => (c.id === id ? { ...c, ...patch } : c)));
@@ -45,6 +67,18 @@ export default function SettingsPage() {
           onChange={(e) => setProfile({ ...profile, displayName: e.target.value })}
           className="mt-1 h-14 rounded-xl border-2 text-xl md:text-xl"
         />
+        <Label htmlFor="userPhone" className="mt-4 text-lg">
+          {strings.phone}
+        </Label>
+        <Input
+          id="userPhone"
+          type="tel"
+          inputMode="tel"
+          placeholder="+91"
+          value={profile.phone}
+          onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+          className="mt-1 h-14 rounded-xl border-2 text-xl md:text-xl"
+        />
         <Label htmlFor="email" className="mt-4 text-lg">
           {strings.email}
         </Label>
@@ -62,9 +96,9 @@ export default function SettingsPage() {
         <div className="flex flex-col gap-3">
           {(
             [
-              ["large", "Large"],
-              ["extra-large", "Extra large"],
-              ["biggest", "Biggest"],
+              ["large", strings.textLarge],
+              ["extra-large", strings.textExtraLarge],
+              ["biggest", strings.textBiggest],
             ] as const
           ).map(([value, label]) => (
             <BigButton
@@ -81,18 +115,17 @@ export default function SettingsPage() {
       <section className="rounded-3xl border-4 border-[#0B1F3A] bg-white p-4 high-contrast:border-white high-contrast:bg-black">
         <h2 className="mb-4 text-2xl font-extrabold">{strings.language}</h2>
         <div className="flex flex-col gap-3">
-          <BigButton
-            tone={prefs.language === "en" ? "primary" : "muted"}
-            onClick={() => setPrefs({ ...prefs, language: "en" })}
-          >
-            English
-          </BigButton>
-          <BigButton
-            tone={prefs.language === "hi" ? "primary" : "muted"}
-            onClick={() => setPrefs({ ...prefs, language: "hi" })}
-          >
-            हिन्दी
-          </BigButton>
+          {LANGUAGES.map((lang) => (
+            <BigButton
+              key={lang.code}
+              tone={prefs.language === lang.code ? "primary" : "muted"}
+              onClick={() =>
+                setPrefs({ ...prefs, language: lang.code })
+              }
+            >
+              {lang.nativeLabel}
+            </BigButton>
+          ))}
         </div>
       </section>
 
@@ -182,9 +215,60 @@ export default function SettingsPage() {
       </section>
 
       <section className="rounded-3xl border-4 border-[#0B1F3A] bg-white p-4 high-contrast:border-white high-contrast:bg-black">
-        <h2 className="mb-3 text-2xl font-extrabold">Booking history</h2>
+        <h2 className="mb-2 text-2xl font-extrabold">{strings.memoryTitle}</h2>
+        <p className="mb-4 text-lg">{strings.memoryHint}</p>
+        <div className="flex items-center justify-between gap-4">
+          <Label htmlFor="memory" className="text-xl font-bold">
+            {strings.memoryEnabled}
+          </Label>
+          <Switch
+            id="memory"
+            checked={memoryOn}
+            onCheckedChange={(on) => {
+              setMemoryEnabled(on);
+              setMemoryOn(on);
+            }}
+            className="h-10 w-16 scale-125"
+          />
+        </div>
+        <h3 className="mb-2 mt-6 text-xl font-bold">{strings.memoryView}</h3>
+        {memories.length === 0 ? (
+          <p className="text-lg">{strings.memoryEmpty}</p>
+        ) : (
+          <ul className="space-y-3">
+            {memories.map((fact) => (
+              <li
+                key={fact}
+                className="flex flex-col gap-2 rounded-2xl border-2 border-[#0B1F3A]/20 p-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <span className="text-lg">{fact}</span>
+                <BigButton
+                  tone="muted"
+                  className="min-h-14 text-lg"
+                  onClick={() => setMemories(deleteMemoryFact(fact))}
+                >
+                  {strings.memoryDelete}
+                </BigButton>
+              </li>
+            ))}
+          </ul>
+        )}
+        <BigButton
+          tone="help"
+          className="mt-4"
+          onClick={() => {
+            clearMemory();
+            setMemories([]);
+          }}
+        >
+          {strings.memoryClear}
+        </BigButton>
+      </section>
+
+      <section className="rounded-3xl border-4 border-[#0B1F3A] bg-white p-4 high-contrast:border-white high-contrast:bg-black">
+        <h2 className="mb-3 text-2xl font-extrabold">{strings.bookingHistory}</h2>
         {history.length === 0 ? (
-          <p className="text-xl">No requests yet. Confirmed bookings will appear only after a real company API accepts them.</p>
+          <p className="text-xl">{strings.bookingEmpty}</p>
         ) : (
           <ul className="space-y-3 text-xl">
             {history.map((item) => (
@@ -201,6 +285,37 @@ export default function SettingsPage() {
       <BigButton tone="call" onClick={saveAll}>
         {saved ? strings.saved : strings.save}
       </BigButton>
+
+      <section className="rounded-3xl border-4 border-[#0B1F3A] bg-white p-4 high-contrast:border-white high-contrast:bg-black">
+        <BigButton
+          tone="primary"
+          onClick={() => {
+            restartSetupWizard();
+            router.push("/setup/contacts");
+          }}
+        >
+          {strings.settingsRestartSetup}
+        </BigButton>
+        <BigButton
+          tone="muted"
+          className="mt-3"
+          onClick={() => {
+            void (async () => {
+              await logoutSession();
+              restartOnboardingFromLanguage();
+              window.location.href = "/";
+            })();
+          }}
+        >
+          {strings.settingsRestartLanguage}
+        </BigButton>
+      </section>
+
+      <section className="rounded-3xl border-4 border-[#0B1F3A] bg-white p-4 high-contrast:border-white high-contrast:bg-black">
+        <BigButton tone="help" onClick={() => void logout()}>
+          {strings.authLogout}
+        </BigButton>
+      </section>
     </AppShell>
   );
 }

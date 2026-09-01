@@ -56,6 +56,20 @@ export function BigButton({
   );
 
   if (href) {
+    const external =
+      href.startsWith("http") || href.startsWith("tel:") || href.startsWith("mailto:");
+    if (external) {
+      const isHttp = href.startsWith("http");
+      return (
+        <a
+          href={href}
+          className={classes}
+          {...(isHttp ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+        >
+          {inner}
+        </a>
+      );
+    }
     return (
       <Link href={href} className={classes}>
         {inner}

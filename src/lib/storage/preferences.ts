@@ -16,6 +16,7 @@ export const DEFAULT_PREFERENCES: AccessibilityPreferences = {
 export const DEFAULT_PROFILE: UserProfile = {
   displayName: "",
   email: "",
+  phone: "",
   preferredLanguage: "en",
 };
 

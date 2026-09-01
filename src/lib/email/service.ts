@@ -1,6 +1,9 @@
 import "server-only";
 
 import { Resend } from "resend";
+import type { AppLanguage } from "@/lib/languages";
+import { createDeviceLoginLinks } from "@/lib/email/device-login-tokens";
+import { newDeviceLoginEmail } from "@/lib/email/device-login-template";
 import {
   bookingConfirmationEmail,
   contactEmail,
@@ -69,7 +72,6 @@ async function deliver(input: {
   });
 
   if (error || !data?.id) {
-    // Do not include provider details because they may contain user data.
     throw new EmailDeliveryError();
   }
 
@@ -132,6 +134,46 @@ export function sendContactEmail(input: {
   });
 }
 
+export async function sendNewDeviceLoginAlert(input: {
+  to: string;
+  userName: string;
+  lang: AppLanguage;
+  deviceName: string;
+  browser: string;
+  location: string;
+  time: string;
+}) {
+  const appUrl = process.env.APP_URL || "http://127.0.0.1:43141";
+  const links = await createDeviceLoginLinks({
+    userName: input.userName.trim(),
+    userEmail: requireEmail(input.to, "Recipient"),
+    lang: input.lang,
+    details: {
+      deviceName: input.deviceName.trim(),
+      browser: input.browser.trim(),
+      location: input.location.trim(),
+      time: input.time.trim(),
+    },
+    appUrl,
+  });
+
+  return deliver({
+    to: input.to,
+    template: newDeviceLoginEmail({
+      lang: input.lang,
+      userName: input.userName.trim(),
+      details: {
+        deviceName: input.deviceName.trim(),
+        browser: input.browser.trim(),
+        location: input.location.trim(),
+        time: input.time.trim(),
+      },
+      approveUrl: links.approveUrl,
+      denyUrl: links.denyUrl,
+    }),
+  });
+}
+
 export function sendBookingEmail(input: {
   to: string;
   subject: string;
@@ -159,4 +201,3 @@ function requireActionUrl(value: string): string {
   }
   return url.toString();
 }
-

@@ -1,7 +1,24 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useSyncExternalStore, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import type { AccessibilityPreferences, Contact, UserProfile } from "@/lib/db/schema";
+import {
+  applySessionToClient,
+  clearSessionOnClient,
+  fetchSessionUser,
+  logoutSession,
+  subscribeAuthLogout,
+  type SessionUser,
+} from "@/lib/auth/client-session";
 import {
   DEFAULT_CONTACTS,
   getContactsSnapshot,
@@ -16,7 +33,10 @@ import {
   saveProfile,
 } from "@/lib/storage/preferences";
 import { subscribeStore } from "@/lib/storage/store-events";
-import { t, type Lang } from "@/lib/i18n";
+import { t } from "@/lib/i18n";
+import type { AppLanguage } from "@/lib/languages";
+
+export type AuthStatus = "loading" | "authenticated" | "anonymous";
 
 type AppContextValue = {
   prefs: AccessibilityPreferences;
@@ -26,8 +46,11 @@ type AppContextValue = {
   contacts: Contact[];
   setContacts: (next: Contact[]) => void;
   strings: ReturnType<typeof t>;
-  lang: Lang;
+  lang: AppLanguage;
   ready: boolean;
+  authStatus: AuthStatus;
+  sessionUser: SessionUser | null;
+  logout: () => Promise<void>;
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -49,6 +72,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     () => DEFAULT_CONTACTS,
   );
 
+  const [authStatus, setAuthStatus] = useState<AuthStatus>("loading");
+  const [sessionUser, setSessionUser] = useState<SessionUser | null>(null);
+
   const setPrefs = useCallback((next: AccessibilityPreferences) => {
     savePreferences(next);
   }, []);
@@ -61,8 +87,50 @@ export function AppProvider({ children }: { children: ReactNode }) {
     saveContacts(next);
   }, []);
 
+  const logout = useCallback(async () => {
+    await logoutSession();
+    setSessionUser(null);
+    setAuthStatus("anonymous");
+    window.location.href = "/auth/login";
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      const user = await fetchSessionUser();
+      if (cancelled) return;
+
+      if (user) {
+        applySessionToClient(user);
+        setSessionUser(user);
+        setAuthStatus("authenticated");
+      } else {
+        clearSessionOnClient();
+        setSessionUser(null);
+        setAuthStatus("anonymous");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    return subscribeAuthLogout(() => {
+      clearSessionOnClient();
+      setSessionUser(null);
+      setAuthStatus("anonymous");
+      if (!window.location.pathname.startsWith("/auth/")) {
+        window.location.href = "/auth/login";
+      }
+    });
+  }, []);
+
   const lang = prefs.language;
   const strings = t(lang);
+  const ready = authStatus !== "loading";
 
   const value = useMemo(
     () => ({
@@ -74,9 +142,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setContacts,
       strings,
       lang,
-      ready: true,
+      ready,
+      authStatus,
+      sessionUser,
+      logout,
     }),
-    [prefs, setPrefs, profile, setProfile, contacts, setContacts, strings, lang],
+    [
+      prefs,
+      setPrefs,
+      profile,
+      setProfile,
+      contacts,
+      setContacts,
+      strings,
+      lang,
+      ready,
+      authStatus,
+      sessionUser,
+      logout,
+    ],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

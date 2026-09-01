@@ -1,14 +1,16 @@
 import type { Contact } from "@/lib/db/schema";
+import { aiPhrase } from "@/lib/ai/phrases";
 import type { ToolCall } from "@/lib/ai/tools";
+import type { AppLanguage } from "@/lib/languages";
 import {
   findContactByName,
   findContactByRelationship,
 } from "@/lib/storage/contacts";
+import { addRoutine } from "@/lib/storage/routines";
 
 export type AssistantResult = {
   spokenText: string;
   toolCall?: ToolCall;
-  /** If UNK cannot help, offer a family call. */
   offerFamilyCall?: boolean;
 };
 
@@ -26,46 +28,98 @@ function includesAny(text: string, words: string[]): boolean {
   return words.some((w) => text.includes(w));
 }
 
-function extractToPlace(text: string): string | undefined {
-  const match = text.match(/\bto\s+(?:the\s+)?(.+?)(?:\s+tomorrow|\s+today|\s+at\s+\d|$)/i);
-  const place = match?.[1]?.trim();
-  return place || undefined;
-}
-
 function extractWhen(text: string): string | undefined {
-  const match = text.match(/\b(tomorrow.*|today.*|at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?)/i);
+  const match = text.match(
+    /\b(tomorrow.*|today.*|at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?|every\s+\w+)/i,
+  );
   return match?.[1]?.trim();
 }
 
-/**
- * Small on-device interpreter for this first version.
- * A later step can swap this for a server-side model that returns
- * the same ToolCall objects (API keys stay on the server).
- */
+function extractDestination(text: string): string | undefined {
+  const patterns = [
+    /\bto\s+(?:the\s+)?(.+?)(?:\s+by\s+|\s+on\s+foot|$)/i,
+    /\bget to\s+(?:the\s+)?(.+?)$/i,
+    /\bhow do i (?:get|go) to\s+(?:the\s+)?(.+?)$/i,
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match?.[1]?.trim()) return match[1].trim();
+  }
+  return undefined;
+}
+
+function travelMode(text: string): "walking" | "driving" | "transit" | "bicycling" {
+  if (includesAny(text, ["walk", "walking", "foot", "पैदल", "પગપાળા"])) return "walking";
+  if (includesAny(text, ["bus", "train", "metro", "transit", "बस", "બસ"])) return "transit";
+  if (includesAny(text, ["bike", "bicycle", "cycle", "साइकिल"])) return "bicycling";
+  return "driving";
+}
+
 export function interpretUserSpeech(
   raw: string,
   contacts: Contact[],
+  lang: AppLanguage = "en",
 ): AssistantResult {
   const text = raw.trim().toLowerCase();
+  const say = (key: Parameters<typeof aiPhrase>[1], vars?: Record<string, string>) =>
+    aiPhrase(lang, key, vars);
 
   if (!text) {
-    return { spokenText: "I did not hear that. Please say it again." };
+    return { spokenText: say("ai.didNotHear") };
   }
 
-  if (/^(yes|yeah|yep|ok|okay|sure|haan|ji|please do)\b/.test(text)) {
+  if (
+    /^(yes|yeah|yep|ok|okay|sure|haan|haa|ji|please do|हाँ|હા|ஆம்|అవును|ಹೌದು|അതെ|ਹਾਂ|جی|ହଁ|হয়|हो)\b/i.test(
+      text,
+    )
+  ) {
     return { spokenText: "YES_CONFIRM" };
   }
-  if (/^(no|nope|nah|don't|do not|cancel|nahi)\b/.test(text)) {
+  if (
+    /^(no|nope|nah|don't|do not|cancel|nahi|नहीं|ના|இல்லை|కాదు|ಇಲ್ಲ|ഇല്ല|ਨਹੀਂ|نہیں|ନା|না|होइन)\b/i.test(
+      text,
+    )
+  ) {
     return { spokenText: "NO_CONFIRM" };
   }
 
-  if (includesAny(text, ["call", "phone", "dial", "ring"])) {
+  if (
+    includesAny(text, [
+      "emergency",
+      "ambulance",
+      "police",
+      "fire",
+      "help me now",
+      "आपात",
+      "एम्बुलेंस",
+      "કટોકટી",
+      "એમ્બ્યુલન્સ",
+    ])
+  ) {
+    return {
+      spokenText: say("ai.emergency"),
+      toolCall: { name: "open_emergency", args: {} },
+    };
+  }
+
+  if (
+    includesAny(text, [
+      "call",
+      "phone",
+      "dial",
+      "ring",
+      "कॉल",
+      "फोन",
+      "કૉલ",
+      "ફોન",
+    ])
+  ) {
     for (const rel of RELATIONSHIPS) {
       if (text.includes(rel) || text.includes(`my ${rel}`)) {
         const contact = findContactByRelationship(contacts, rel);
         if (contact) {
           return {
-            spokenText: `Do you want me to call ${contact.name}?`,
+            spokenText: say("ai.confirmCall", { name: contact.name }),
             toolCall: {
               name: "call_family_member",
               args: { relationship: rel, name: contact.name },
@@ -77,7 +131,7 @@ export function interpretUserSpeech(
     for (const contact of contacts) {
       if (text.includes(contact.name.toLowerCase())) {
         return {
-          spokenText: `Do you want me to call ${contact.name}?`,
+          spokenText: say("ai.confirmCall", { name: contact.name }),
           toolCall: {
             name: "call_family_member",
             args: { name: contact.name },
@@ -90,7 +144,7 @@ export function interpretUserSpeech(
       const byName = findContactByName(contacts, named[1]);
       if (byName) {
         return {
-          spokenText: `Do you want me to call ${byName.name}?`,
+          spokenText: say("ai.confirmCall", { name: byName.name }),
           toolCall: {
             name: "call_family_member",
             args: { name: byName.name },
@@ -98,66 +152,158 @@ export function interpretUserSpeech(
         };
       }
     }
+    return { spokenText: say("ai.noContact") };
+  }
+
+  if (
+    includesAny(text, [
+      "grocery",
+      "groceries",
+      "shop",
+      "shopping",
+      "amazon",
+      "blinkit",
+      "order food",
+      "खरीदारी",
+      "ખરીદી",
+    ])
+  ) {
     return {
-      spokenText:
-        "I could not find that family member. Open Call Family to add their number.",
+      spokenText: say("ai.shopping"),
+      toolCall: { name: "open_shopping", args: {} },
     };
   }
 
-  if (includesAny(text, ["cab", "taxi", "uber", "ola", "auto"])) {
-    const destination = extractToPlace(text);
+  if (
+    includesAny(text, [
+      "remind me",
+      "reminder",
+      "every morning",
+      "every day",
+      "every sunday",
+      "याद दिला",
+      "યાદ અપાવ",
+    ])
+  ) {
     const when = extractWhen(text);
+    const title =
+      text.replace(/remind me\s+(?:to\s+)?/i, "").trim() ||
+      say("ai.reminderLabel");
+    if (when) {
+      addRoutine({
+        title: title.slice(0, 120),
+        time: when,
+        days: text.includes("every") ? "recurring" : "once",
+        kind: "reminder",
+      });
+    }
     return {
-      spokenText:
-        "I opened cab booking. Fill any missing details, then search. Nothing is booked until a real company API confirms.",
-      toolCall: { name: "search_cabs", args: { destination, when } },
+      spokenText: when
+        ? say("ai.reminderSaved", { when })
+        : say("ai.openRoutine"),
+      toolCall: { name: "open_routine", args: {} },
     };
   }
 
-  if (includesAny(text, ["flight", "plane", "fly "]) || /\bfly to\b/.test(text)) {
-    const destination = extractToPlace(text);
-    const date = extractWhen(text);
+  if (
+    includesAny(text, [
+      "routine",
+      "schedule",
+      "tomorrow",
+      "what's my day",
+      "calendar",
+      "दिनचर्या",
+      "દિનચર્યા",
+    ])
+  ) {
     return {
-      spokenText:
-        "I opened flight booking. Fill any missing details, then search. Tickets cannot be bought until a real travel API is connected.",
-      toolCall: { name: "search_flights", args: { destination, date } },
+      spokenText: say("ai.hereRoutine"),
+      toolCall: { name: "open_routine", args: {} },
     };
   }
 
-  if (includesAny(text, ["bill", "electricity", "water", "bijli", "paani"])) {
-    const billType = text.includes("water") || text.includes("paani")
-      ? "water"
-      : "electricity";
+  if (
+    includesAny(text, [
+      "direction",
+      "how do i get",
+      "how to get",
+      "navigate",
+      "maps",
+      "hospital",
+      "रास्ता",
+      "રસ્તો",
+    ])
+  ) {
+    const destination = extractDestination(text) || "hospital";
     return {
-      spokenText:
-        "I opened bill payment. UNK will never pay without you confirming twice, and only after a real bill-pay API is connected.",
-      toolCall: { name: "search_bill_options", args: { billType } },
-    };
-  }
-
-  if (includesAny(text, ["nurse", "caregiver", "caretaker", "home care"])) {
-    return {
-      spokenText:
-        "I opened nurse booking. This is not medical advice. Booking needs an authorized healthcare API.",
-      toolCall: { name: "search_nurse_services", args: { when: extractWhen(text) } },
-    };
-  }
-
-  if (includesAny(text, ["blood test", "blood", "lab", "pathology"])) {
-    const collection = text.includes("home") ? "home" : text.includes("lab") ? "lab" : undefined;
-    return {
-      spokenText:
-        "I opened blood test booking. This is not medical advice. Booking needs an authorized lab API.",
+      spokenText: say("ai.directions", { destination }),
       toolCall: {
-        name: "search_blood_tests",
-        args: { collection, when: extractWhen(text) },
+        name: "open_directions",
+        args: { destination, mode: travelMode(text) },
       },
     };
   }
 
+  if (
+    includesAny(text, [
+      "doctor",
+      "clinic",
+      "symptom",
+      "pain",
+      "fever",
+      "sick",
+      "headache",
+      "medicine",
+      "medical",
+      "दर्द",
+      "बुखार",
+      "डॉक्टर",
+      "दवा",
+      "દવા",
+      "ડૉક્ટર",
+    ])
+  ) {
+    if (
+      includesAny(text, [
+        "near",
+        "nearby",
+        "close",
+        "find",
+        "where",
+        "recommend",
+        "पास",
+        "નજીક",
+      ])
+    ) {
+      return {
+        spokenText: say("ai.doctorsNearby"),
+        toolCall: { name: "open_doctor_nearby", args: {} },
+      };
+    }
+    return {
+      spokenText: say("ai.openMedical"),
+      toolCall: { name: "open_medical", args: {} },
+    };
+  }
+
+  if (
+    includesAny(text, [
+      "help",
+      "stuck",
+      "trouble",
+      "don't know how",
+      "मदद",
+      "મદદ",
+    ])
+  ) {
+    return {
+      spokenText: say("ai.needHelp"),
+      toolCall: { name: "open_help", args: {} },
+    };
+  }
+
   return {
-    spokenText:
-      "I am not sure how to help with that yet. Would you like me to call a family member?",
-    offerFamilyCall: true,
+    spokenText: "",
+    offerFamilyCall: false,
   };
 }

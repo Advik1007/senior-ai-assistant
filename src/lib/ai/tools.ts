@@ -1,56 +1,44 @@
 /**
- * Tool contracts for UNK.
- *
- * The assistant must not take arbitrary actions. It may only request
- * one of these tools. Booking/payment tools search or start a flow —
- * they never charge money by themselves.
+ * Tool contracts for UNK Command AI.
+ * The assistant may only request one of these tools.
  */
 
 export type AssistantToolName =
   | "call_family_member"
-  | "search_cabs"
-  | "search_flights"
-  | "search_bill_options"
-  | "search_nurse_services"
-  | "search_blood_tests";
+  | "open_medical"
+  | "open_doctor_nearby"
+  | "open_shopping"
+  | "open_routine"
+  | "open_help"
+  | "open_emergency"
+  | "open_directions"
+  | "create_reminder";
 
 export type CallFamilyArgs = {
   relationship?: string;
   name?: string;
 };
 
-export type SearchCabsArgs = {
+export type OpenDirectionsArgs = {
   destination?: string;
-  when?: string;
+  mode?: "walking" | "driving" | "transit" | "bicycling";
 };
 
-export type SearchFlightsArgs = {
-  origin?: string;
-  destination?: string;
-  date?: string;
-  passengers?: number;
+export type CreateReminderArgs = {
+  title?: string;
+  time?: string;
+  days?: string;
 };
 
-export type SearchBillsArgs = {
-  billType?: "electricity" | "water";
-};
-
-export type SearchNurseArgs = {
-  when?: string;
-  location?: string;
-};
-
-export type SearchBloodTestsArgs = {
-  test?: string;
-  location?: string;
-  collection?: "home" | "lab";
-  when?: string;
-};
+export type OpenDoctorArgs = Record<string, never>;
 
 export type ToolCall =
   | { name: "call_family_member"; args: CallFamilyArgs }
-  | { name: "search_cabs"; args: SearchCabsArgs }
-  | { name: "search_flights"; args: SearchFlightsArgs }
-  | { name: "search_bill_options"; args: SearchBillsArgs }
-  | { name: "search_nurse_services"; args: SearchNurseArgs }
-  | { name: "search_blood_tests"; args: SearchBloodTestsArgs };
+  | { name: "open_medical"; args: OpenDoctorArgs }
+  | { name: "open_doctor_nearby"; args: OpenDoctorArgs }
+  | { name: "open_shopping"; args: Record<string, never> }
+  | { name: "open_routine"; args: Record<string, never> }
+  | { name: "open_help"; args: Record<string, never> }
+  | { name: "open_emergency"; args: Record<string, never> }
+  | { name: "open_directions"; args: OpenDirectionsArgs }
+  | { name: "create_reminder"; args: CreateReminderArgs };

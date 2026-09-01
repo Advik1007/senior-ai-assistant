@@ -4,6 +4,8 @@
  * Nothing is recorded or uploaded by these helpers.
  */
 
+import { languageByCode, type AppLanguage } from "@/lib/languages";
+
 export type SpeechRecognitionLike = {
   lang: string;
   interimResults: boolean;
@@ -37,9 +39,16 @@ export function canSpeak(): boolean {
   return typeof window !== "undefined" && "speechSynthesis" in window;
 }
 
+export function speechLocale(lang: AppLanguage | string): string {
+  if (typeof lang === "string" && lang.length === 2) {
+    return languageByCode(lang as AppLanguage).speechLang;
+  }
+  return languageByCode(lang as AppLanguage).speechLang;
+}
+
 export function speakText(
   text: string,
-  options: { rate: number; lang: string; onend?: () => void },
+  options: { rate: number; lang: AppLanguage | string; onend?: () => void },
 ): void {
   if (!canSpeak()) {
     options.onend?.();
@@ -48,7 +57,16 @@ export function speakText(
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.rate = options.rate;
-  utterance.lang = options.lang === "hi" ? "hi-IN" : "en-IN";
+  const locale = speechLocale(options.lang);
+  utterance.lang = locale;
+
+  const voices = window.speechSynthesis.getVoices();
+  const langCode = locale.slice(0, 2).toLowerCase();
+  const matched =
+    voices.find((v) => v.lang.toLowerCase() === locale.toLowerCase()) ||
+    voices.find((v) => v.lang.toLowerCase().startsWith(langCode));
+  if (matched) utterance.voice = matched;
+
   utterance.onend = () => options.onend?.();
   utterance.onerror = () => options.onend?.();
   window.speechSynthesis.speak(utterance);

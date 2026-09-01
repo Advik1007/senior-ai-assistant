@@ -32,6 +32,10 @@ npm run dev -- --port 43141 --hostname 127.0.0.1
 
 Then open [http://127.0.0.1:43141](http://127.0.0.1:43141).
 
+## Android app
+
+UNK AI can run as an Android app (Capacitor WebView shell). See **[ANDROID.md](./ANDROID.md)** for setup, emulator, and APK build steps.
+
 For voice, use Chrome or Edge and allow the microphone. Add family phone
 numbers in **Settings** before calling.
 
@@ -85,9 +89,16 @@ creates and stores expiring, single-use verification or password-reset tokens.
    - **Build Command:** `npm run build`
    - **Output:** automatic
 3. Add environment variables in the Vercel dashboard (never commit secrets):
-   `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `CONTACT_EMAIL`, `APP_URL`, and any
-   optional `AI_API_KEY`.
+   `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `CONTACT_EMAIL`, `AUTH_SECRET`, and
+   **`APP_URL`** set to your public site URL, e.g.
+   `https://your-project.vercel.app` (required for login emails and Android).
 4. Redeploy after changing environment variables.
+
+## Android app (Vercel)
+
+If the site is on Vercel, the Android APK should load that same https URL. See
+**[ANDROID.md](./ANDROID.md)** — set `CAPACITOR_SERVER_URL` in `.env.local` and run
+`npm run android:sync:prod`.
 
 ## First version screens
 
