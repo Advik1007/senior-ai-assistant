@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Sync Capacitor Android to load the Vercel-hosted UNK AI site.
+ * Sync Capacitor Android to load a production https UNK AI site.
  * Requires CAPACITOR_SERVER_URL or APP_URL in .env.local (https://...).
  */
 import { execSync } from "node:child_process";
@@ -39,13 +39,26 @@ const url = (
 
 if (!url.startsWith("https://")) {
   console.error(`
-UNK AI Android (Vercel): set your production URL in .env.local:
+UNK AI Android (production): set your https URL in .env.local:
 
-  APP_URL=https://YOUR-PROJECT.vercel.app
-  CAPACITOR_SERVER_URL=https://YOUR-PROJECT.vercel.app
+  APP_URL=https://your-domain.com
+  CAPACITOR_SERVER_URL=https://your-domain.com
 
-Use the same https URL you set in the Vercel dashboard for APP_URL.
 Then run: npm run android:sync:prod
+`);
+  process.exit(1);
+}
+
+const host = new URL(url).host.toLowerCase();
+const canonical = "senior-ai-assistant.vercel.app";
+if (host !== canonical && host.endsWith(".vercel.app")) {
+  console.error(`
+Use the stable production URL, not a preview deployment link:
+
+  APP_URL=https://${canonical}
+  CAPACITOR_SERVER_URL=https://${canonical}
+
+Preview URLs expire and return DEPLOYMENT_NOT_FOUND.
 `);
   process.exit(1);
 }

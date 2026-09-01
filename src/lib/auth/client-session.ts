@@ -3,8 +3,10 @@ import { isAppLanguage } from "@/lib/languages";
 import type { AccessibilityPreferences, UserProfile } from "@/lib/db/schema";
 import {
   clearAuthenticatedOnboarding,
+  ensureSetupCompleteForReturningUser,
   getOnboardingSnapshot,
   markEmailVerified,
+  markSetupComplete,
 } from "@/lib/storage/onboarding";
 import {
   getPreferencesSnapshot,
@@ -20,6 +22,7 @@ export type SessionUser = {
   email: string;
   name: string;
   lang: AppLanguage;
+  onboardingComplete: boolean;
 };
 
 export async function fetchSessionUser(): Promise<SessionUser | null> {
@@ -61,6 +64,7 @@ export function applySessionToClient(user: SessionUser): void {
   }
 
   markEmailVerified();
+  ensureSetupCompleteForReturningUser(user.onboardingComplete);
 }
 
 export function clearSessionOnClient(): void {

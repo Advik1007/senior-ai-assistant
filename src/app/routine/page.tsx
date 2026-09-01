@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { BigButton } from "@/components/BigButton";
+import { ReminderStatusButtons } from "@/components/ReminderStatusButtons";
 import { useApp } from "@/components/providers/app-provider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,6 +52,7 @@ export default function RoutinePage() {
               <p>
                 {item.time} · {item.days}
               </p>
+              <ReminderStatusButtons kind="routine" id={item.id} className="mt-3" />
               <BigButton
                 tone="muted"
                 className="mt-3 min-h-16 text-xl"

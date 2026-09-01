@@ -52,10 +52,9 @@ APP_URL=http://127.0.0.1:43141
 ```
 
 - Use a newly created Resend key for `RESEND_API_KEY`.
+- `onboarding@resend.dev` works for Resend test mode. For production, verify your own domain at [resend.com/domains](https://resend.com/domains) and use an address on that domain.
 - `CONTACT_EMAIL` receives messages submitted on the Help page.
 - `EMAIL_TEST_RECIPIENT` receives development test emails.
-- `onboarding@resend.dev` is suitable for Resend testing. Use an address on
-  your verified domain for production.
 - `.env.local` is ignored by Git and must never be committed.
 
 Restart the development server after changing environment variables. To test
@@ -79,26 +78,24 @@ The test endpoint is disabled in production. Production authentication code
 should call the server-only functions in `src/lib/email/service.ts` after it
 creates and stores expiring, single-use verification or password-reset tokens.
 
-## Deploy to Vercel
+## Deploy frontend to Vercel
 
-1. Push this repository to GitHub. The Next.js app lives in `src/app/` at the
-   project root (same folder as `package.json`).
-2. In Vercel, import the GitHub repo and use these defaults:
-   - **Framework:** Next.js
-   - **Root Directory:** `.` (repository root)
-   - **Build Command:** `npm run build`
-   - **Output:** automatic
-3. Add environment variables in the Vercel dashboard (never commit secrets):
-   `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `CONTACT_EMAIL`, `AUTH_SECRET`, and
-   **`APP_URL`** set to your public site URL, e.g.
-   `https://your-project.vercel.app` (required for login emails and Android).
-4. Redeploy after changing environment variables.
+UNK AI’s **frontend + API routes** run as one Next.js app on Vercel (not separate
+static hosting).
 
-## Android app (Vercel)
+1. Push this repo to GitHub.
+2. In [Vercel](https://vercel.com), import the repo (Framework: **Next.js**).
+3. Set environment variables (Production):
+   - `APP_URL` = `https://senior-ai-assistant.vercel.app` (your production domain)
+   - `AUTH_SECRET`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `CONTACT_EMAIL`
+4. Redeploy after changing env vars.
 
-If the site is on Vercel, the Android APK should load that same https URL. See
-**[ANDROID.md](./ANDROID.md)** — set `CAPACITOR_SERVER_URL` in `.env.local` and run
-`npm run android:sync:prod`.
+Use **`senior-ai-assistant.vercel.app`** (production domain). Avoid long preview
+URLs — those can show “Log in to Vercel” instead of UNK AI.
+
+## Android app
+
+The Android shell loads the same Vercel frontend URL. See **[ANDROID.md](./ANDROID.md)**.
 
 ## First version screens
 

@@ -12,6 +12,7 @@ export type DbUser = {
   password_hash: string;
   lang: AppLanguage;
   created_at: string;
+  onboarding_complete: number;
 };
 
 export type PublicUser = {
@@ -19,6 +20,7 @@ export type PublicUser = {
   email: string;
   name: string;
   lang: AppLanguage;
+  onboardingComplete: boolean;
 };
 
 function rowToUser(row: Record<string, unknown>): DbUser {
@@ -29,6 +31,7 @@ function rowToUser(row: Record<string, unknown>): DbUser {
     password_hash: String(row.password_hash),
     lang: String(row.lang) as AppLanguage,
     created_at: String(row.created_at),
+    onboarding_complete: Number(row.onboarding_complete ?? 0),
   };
 }
 
@@ -71,7 +74,13 @@ export async function createUser(input: {
     ],
   });
 
-  return { id, email, name: input.name.trim(), lang: input.lang };
+  return {
+    id,
+    email,
+    name: input.name.trim(),
+    lang: input.lang,
+    onboardingComplete: false,
+  };
 }
 
 export function toPublicUser(user: DbUser): PublicUser {
@@ -80,7 +89,17 @@ export function toPublicUser(user: DbUser): PublicUser {
     email: user.email,
     name: user.name,
     lang: user.lang,
+    onboardingComplete: user.onboarding_complete === 1,
   };
+}
+
+export async function markUserOnboardingComplete(userId: string): Promise<void> {
+  await ensureSchema();
+  const db = getDb();
+  await db.execute({
+    sql: "UPDATE users SET onboarding_complete = 1 WHERE id = ?",
+    args: [userId],
+  });
 }
 
 /** Magic-link users get a random password hash they never receive. */

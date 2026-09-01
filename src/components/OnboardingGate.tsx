@@ -6,6 +6,7 @@ import { useApp } from "@/components/providers/app-provider";
 import {
   getOnboardingSnapshot,
   isOnboardingFinished,
+  ensureSetupCompleteForReturningUser,
   setupPathForStep,
   type SetupStep,
 } from "@/lib/storage/onboarding";
@@ -87,6 +88,23 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
       const onAuth = isAuthPath(pathname);
       setAllowed(onAuth);
       if (!onAuth) router.replace("/auth/login");
+      return;
+    }
+
+    ensureSetupCompleteForReturningUser();
+    const stateAfterAuth = getOnboardingSnapshot();
+    if (isOnboardingFinished(stateAfterAuth)) {
+      if (
+        pathname === LANGUAGE_PATH ||
+        isAuthPath(pathname) ||
+        isSetupPath(pathname) ||
+        pathname === "/auth/setup-calls"
+      ) {
+        setAllowed(false);
+        router.replace("/home");
+        return;
+      }
+      setAllowed(true);
       return;
     }
 

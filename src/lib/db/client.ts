@@ -30,9 +30,17 @@ export async function ensureSchema(): Promise<void> {
           name TEXT NOT NULL,
           password_hash TEXT NOT NULL,
           lang TEXT NOT NULL DEFAULT 'en',
-          created_at TEXT NOT NULL
+          created_at TEXT NOT NULL,
+          onboarding_complete INTEGER NOT NULL DEFAULT 0
         )
       `);
+      try {
+        await db.execute(
+          `ALTER TABLE users ADD COLUMN onboarding_complete INTEGER NOT NULL DEFAULT 0`,
+        );
+      } catch {
+        // Column already exists.
+      }
     })();
   }
   await schemaReady;

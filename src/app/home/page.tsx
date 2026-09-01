@@ -13,6 +13,7 @@ import {
 import { AppShell } from "@/components/AppShell";
 import { BigButton } from "@/components/BigButton";
 import { DailyGreeting } from "@/components/DailyGreeting";
+import { TodayReminders } from "@/components/TodayReminders";
 import { useApp } from "@/components/providers/app-provider";
 
 export default function HomePage() {
@@ -21,6 +22,7 @@ export default function HomePage() {
   return (
     <AppShell showBack={false} title={strings.tagline}>
       <DailyGreeting />
+      <TodayReminders />
 
       <BigButton href="/talk" tone="primary" icon={<Mic className="size-8" />}>
         {strings.talk}

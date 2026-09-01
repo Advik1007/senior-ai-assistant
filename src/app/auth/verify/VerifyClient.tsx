@@ -36,7 +36,13 @@ export default function VerifyClient() {
         ok?: boolean;
         email?: string;
         lang?: string;
-        user?: { id: string; email: string; name: string; lang: string };
+        user?: {
+          id: string;
+          email: string;
+          name: string;
+          lang: string;
+          onboardingComplete?: boolean;
+        };
       }) => {
         if (!data.ok || !data.email) {
           setStatus("error");
@@ -48,6 +54,7 @@ export default function VerifyClient() {
             email: data.user.email,
             name: data.user.name,
             lang: data.user.lang,
+            onboardingComplete: !!data.user.onboardingComplete,
           });
         } else {
           markEmailVerified();

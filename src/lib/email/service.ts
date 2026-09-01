@@ -40,6 +40,10 @@ function requireEmail(value: string, label: string): string {
 function getConfig() {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL;
+  const replyTo =
+    process.env.RESEND_REPLY_TO_EMAIL?.trim() ||
+    process.env.CONTACT_EMAIL?.trim() ||
+    undefined;
 
   if (!apiKey) {
     throw new EmailConfigurationError("RESEND_API_KEY is not configured.");
@@ -48,7 +52,7 @@ function getConfig() {
     throw new EmailConfigurationError("RESEND_FROM_EMAIL is not configured.");
   }
 
-  return { resend: new Resend(apiKey), from };
+  return { resend: new Resend(apiKey), from, replyTo };
 }
 
 async function deliver(input: {
@@ -56,11 +60,13 @@ async function deliver(input: {
   template: EmailTemplate;
   replyTo?: string;
 }): Promise<{ id: string }> {
-  const { resend, from } = getConfig();
+  const { resend, from, replyTo: defaultReplyTo } = getConfig();
   const to = requireEmail(input.to, "Recipient");
   const replyTo = input.replyTo
     ? requireEmail(input.replyTo, "Reply-to")
-    : undefined;
+    : defaultReplyTo
+      ? requireEmail(defaultReplyTo, "Reply-to")
+      : undefined;
 
   const { data, error } = await resend.emails.send({
     from,

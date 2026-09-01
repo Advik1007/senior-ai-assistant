@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { BigButton } from "@/components/BigButton";
+import { ReminderStatusButtons } from "@/components/ReminderStatusButtons";
 import { useApp } from "@/components/providers/app-provider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -82,6 +83,7 @@ export default function MedicalMedicinesPage() {
             onChange={(e) => updateMedicine(med.id, { days: e.target.value })}
             className="mt-1 h-14 rounded-xl border-2 text-xl"
           />
+          <ReminderStatusButtons kind="medicine" id={med.id} className="mt-4" />
         </section>
       ))}
 
