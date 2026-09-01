@@ -37,15 +37,9 @@ type PersistedOnboarding = Partial<{
   setupStep: SetupStep;
 }>;
 
-function migrateLegacyLanguageFlag(persisted: PersistedOnboarding): boolean {
-  if (persisted.languageChosen) return true;
-  if (typeof window === "undefined") return false;
-  const legacy = window.sessionStorage.getItem(LEGACY_SESSION_LANGUAGE_KEY) === "1";
-  if (legacy) {
-    window.sessionStorage.removeItem(LEGACY_SESSION_LANGUAGE_KEY);
-    return true;
-  }
-  return false;
+function clearLegacyLanguageFlag(): void {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem(LEGACY_SESSION_LANGUAGE_KEY);
 }
 
 function readPersisted(): PersistedOnboarding {
@@ -56,8 +50,9 @@ export function getOnboardingSnapshot(): OnboardingState {
   if (typeof window === "undefined") return DEFAULT;
   if (!cache) {
     const persisted = readPersisted();
+    clearLegacyLanguageFlag();
     cache = {
-      languageChosen: migrateLegacyLanguageFlag(persisted),
+      languageChosen: !!persisted.languageChosen,
       emailVerified: !!persisted.emailVerified,
       setupComplete: !!persisted.setupComplete,
       setupWizardComplete: !!persisted.setupWizardComplete,
@@ -79,6 +74,7 @@ export function saveOnboarding(state: OnboardingState): void {
   emitStore();
 }
 
+/** Only call from the language selection screen after the user taps a language. */
 export function markLanguageChosen(): void {
   saveOnboarding({ ...getOnboardingSnapshot(), languageChosen: true });
 }

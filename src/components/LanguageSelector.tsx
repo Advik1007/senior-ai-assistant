@@ -4,34 +4,19 @@ import { useRouter } from "next/navigation";
 import { OnboardingShell } from "@/components/OnboardingShell";
 import { useApp } from "@/components/providers/app-provider";
 import { LANGUAGES, type AppLanguage } from "@/lib/languages";
-import {
-  getOnboardingSnapshot,
-  markLanguageChosen,
-  setupPathForStep,
-} from "@/lib/storage/onboarding";
+import { markLanguageChosen } from "@/lib/storage/onboarding";
 
 export function LanguageSelector() {
   const router = useRouter();
-  const { prefs, setPrefs, setProfile, profile, strings, authStatus } = useApp();
+  const { prefs, setPrefs, setProfile, profile, strings } = useApp();
 
   function selectLanguage(code: AppLanguage) {
     setPrefs({ ...prefs, language: code });
     setProfile({ ...profile, preferredLanguage: code });
     markLanguageChosen();
 
-    // Language → login (unless server session already valid) → setup → home
-    if (authStatus !== "authenticated") {
-      router.push("/auth/login");
-      return;
-    }
-
-    const state = getOnboardingSnapshot();
-    if (!state.setupWizardComplete) {
-      router.push(setupPathForStep(state.setupStep || "contacts"));
-      return;
-    }
-
-    router.push("/home");
+    // Strict order after language: login → setup → home
+    router.push("/auth/login");
   }
 
   return (

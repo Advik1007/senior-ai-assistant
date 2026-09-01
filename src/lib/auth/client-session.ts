@@ -5,7 +5,6 @@ import {
   clearAuthenticatedOnboarding,
   getOnboardingSnapshot,
   markEmailVerified,
-  markLanguageChosen,
 } from "@/lib/storage/onboarding";
 import {
   getPreferencesSnapshot,
@@ -42,20 +41,25 @@ export function applySessionToClient(user: SessionUser): void {
   const profile = getProfileSnapshot();
   const onboarding = getOnboardingSnapshot();
 
-  const language: AppLanguage =
-    onboarding.languageChosen && isAppLanguage(prefs.language)
-      ? prefs.language
-      : user.lang;
+  // Never mark language chosen here — only the language screen may do that.
+  if (onboarding.languageChosen) {
+    const language: AppLanguage =
+      isAppLanguage(prefs.language) ? prefs.language : user.lang;
+    savePreferences({ ...prefs, language });
+    saveProfile({
+      ...profile,
+      displayName: user.name || profile.displayName,
+      email: user.email,
+      preferredLanguage: language,
+    });
+  } else {
+    saveProfile({
+      ...profile,
+      displayName: user.name || profile.displayName,
+      email: user.email,
+    });
+  }
 
-  savePreferences({ ...prefs, language });
-  saveProfile({
-    ...profile,
-    displayName: user.name || profile.displayName,
-    email: user.email,
-    preferredLanguage: language,
-  });
-
-  markLanguageChosen();
   markEmailVerified();
 }
 

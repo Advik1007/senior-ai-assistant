@@ -20,6 +20,8 @@ const AUTH_PREFIXES = [
 
 const SETUP_STEPS: SetupStep[] = ["contacts", "routine", "medicines", "complete"];
 
+const LANGUAGE_PATH = "/";
+
 function isAuthPath(path: string): boolean {
   return AUTH_PREFIXES.some((p) => path === p || path.startsWith(p));
 }
@@ -33,14 +35,12 @@ function setupStepFromPath(path: string): SetupStep | null {
   return SETUP_STEPS.includes(step) ? step : null;
 }
 
-function isFullyReady(state: ReturnType<typeof getOnboardingSnapshot>): boolean {
-  return isOnboardingFinished(state);
-}
-
 /**
- * Enforced order:
- * Language (/) → Login/Verify → /setup/contacts → /setup/routine
- * → /setup/medicines → /setup/complete → /home
+ * HARD ORDER — never skip a step:
+ * 1. Language (/) — user must tap a language; nothing else is allowed before this
+ * 2. Login / verify (/auth/*)
+ * 3. Setup wizard (/setup/contacts → routine → medicines → complete)
+ * 4. Home (/home)
  */
 export function OnboardingGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -49,26 +49,27 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
   const [allowed, setAllowed] = useState(false);
 
   useEffect(() => {
-    if (!ready) return;
-
     const state = getOnboardingSnapshot();
 
     if (pathname === "/language") {
-      router.replace("/");
+      router.replace(LANGUAGE_PATH);
       return;
     }
 
-    // 1) Language first
+    // ── Step 1: Language ALWAYS first (no auth check, no session bypass) ──
     if (!state.languageChosen) {
-      setAllowed(pathname === "/");
-      if (pathname !== "/") router.replace("/");
+      setAllowed(pathname === LANGUAGE_PATH);
+      if (pathname !== LANGUAGE_PATH) router.replace(LANGUAGE_PATH);
       return;
     }
 
-    // Fully done → home (never show setup/login again)
-    if (isFullyReady(state)) {
+    // Steps 2–4 need server session status
+    if (!ready) return;
+
+    // Fully done → home only
+    if (isOnboardingFinished(state)) {
       if (
-        pathname === "/" ||
+        pathname === LANGUAGE_PATH ||
         isAuthPath(pathname) ||
         isSetupPath(pathname) ||
         pathname === "/auth/setup-calls"
@@ -81,7 +82,7 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // 2) Login / verify — require a valid server session
+    // ── Step 2: Login / verify ──
     if (authStatus !== "authenticated") {
       const onAuth = isAuthPath(pathname);
       setAllowed(onAuth);
@@ -89,7 +90,7 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // 3) Setup wizard (contacts → routine → medicines → complete)
+    // ── Step 3: Setup wizard ──
     if (pathname === "/auth/setup-calls") {
       setAllowed(false);
       router.replace("/setup/contacts");
@@ -118,6 +119,15 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
 
     setAllowed(true);
   }, [pathname, router, ready, authStatus]);
+
+  const languagePending =
+    typeof window !== "undefined" &&
+    !getOnboardingSnapshot().languageChosen;
+
+  // Language screen never waits on auth bootstrap
+  if (languagePending && pathname === LANGUAGE_PATH && allowed) {
+    return <>{children}</>;
+  }
 
   if (!ready || !allowed) {
     return (
