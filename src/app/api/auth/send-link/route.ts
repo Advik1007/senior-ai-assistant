@@ -1,16 +1,25 @@
 import { NextResponse } from "next/server";
 import { createEmailVerifyToken } from "@/lib/auth/email-verify";
+import { getMissingEmailEnv, isEmailEnvReady } from "@/lib/auth/email-env";
 import {
   EmailConfigurationError,
   EmailDeliveryError,
   sendEmailVerification,
 } from "@/lib/email/service";
 import { isAppLanguage } from "@/lib/languages";
+import { getServerAppUrl } from "@/lib/server-app-url";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: Request) {
   try {
+    if (!isEmailEnvReady()) {
+      return NextResponse.json(
+        { message: "not_configured", missing: getMissingEmailEnv() },
+        { status: 503 },
+      );
+    }
+
     const body = (await request.json()) as { email?: string; lang?: string };
     const email = body.email?.trim().toLowerCase() ?? "";
     const lang = body.lang && isAppLanguage(body.lang) ? body.lang : "en";
@@ -22,7 +31,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const appUrl = process.env.APP_URL || "http://127.0.0.1:43141";
+    const appUrl = getServerAppUrl();
     const token = await createEmailVerifyToken(email, lang);
     const verifyUrl = `${appUrl.replace(/\/$/, "")}/auth/verify?token=${encodeURIComponent(token)}`;
 

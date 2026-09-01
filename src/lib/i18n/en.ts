@@ -53,7 +53,7 @@ const en: TranslationCatalog = {
   "auth.error.sendFailed":
     "We could not send the email. Check the address and try again. With Resend test mode, use the email you signed up with.",
   "auth.error.notConfigured":
-    "Email is not set up yet. Add RESEND_API_KEY and AUTH_SECRET to .env.local, then restart the app.",
+    "Login email is not configured on the server. In Vercel → senior-ai-assistant → Settings → Environment Variables (Production), add RESEND_API_KEY, RESEND_FROM_EMAIL, AUTH_SECRET, and APP_URL, then Redeploy.",
   "auth.changeLanguage": "Change language",
   "auth.setupCallsTitle": "Set up your calls",
   "auth.setupCallsHint":

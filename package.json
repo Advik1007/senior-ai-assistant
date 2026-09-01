@@ -10,7 +10,8 @@
     "android:sync": "npx cap sync android",
     "android:sync:prod": "node scripts/android-sync-production.mjs",
     "android:open": "npx cap open android",
-    "android:run": "npm run android:sync && npx cap run android"
+    "android:run": "npm run android:sync && npx cap run android",
+    "vercel:env": "node scripts/push-vercel-env.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
