@@ -23,6 +23,7 @@ const SETUP_STEPS: SetupStep[] = ["contacts", "routine", "medicines", "complete"
 const LANGUAGE_PATH = "/";
 
 function isAuthPath(path: string): boolean {
+  if (path === "/auth" || path === "/auth/") return true;
   return AUTH_PREFIXES.some((p) => path === p || path.startsWith(p));
 }
 
@@ -37,9 +38,9 @@ function setupStepFromPath(path: string): SetupStep | null {
 
 /**
  * HARD ORDER — never skip a step:
- * 1. Language (/) — user must tap a language; nothing else is allowed before this
- * 2. Login / verify (/auth/*)
- * 3. Setup wizard (/setup/contacts → routine → medicines → complete)
+ * 1. Language (/)
+ * 2. Sign in or Create account (/auth, /auth/login, /auth/signup)
+ * 3. Setup wizard (/setup/contacts → routine → medicines → complete + confetti)
  * 4. Home (/home)
  */
 export function OnboardingGate({ children }: { children: React.ReactNode }) {
@@ -82,11 +83,11 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // ── Step 2: Login / verify ──
+    // ── Step 2: Sign in or Create account ──
     if (authStatus !== "authenticated") {
       const onAuth = isAuthPath(pathname);
       setAllowed(onAuth);
-      if (!onAuth) router.replace("/auth/login");
+      if (!onAuth) router.replace("/auth");
       return;
     }
 

@@ -15,8 +15,8 @@ export function LanguageSelector() {
     setProfile({ ...profile, preferredLanguage: code });
     markLanguageChosen();
 
-    // Strict order after language: login → setup → home
-    router.push("/auth/login");
+    // Strict order after language: Sign in / Create account → setup → home
+    router.push("/auth");
   }
 
   return (

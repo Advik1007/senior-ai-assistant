@@ -1,22 +1,28 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { BigButton } from "@/components/BigButton";
 import {
   OnboardingLink,
   OnboardingShell,
   OnboardingStatus,
   onboardingInputClass,
   onboardingLabelClass,
+  onboardingMutedTextClass,
 } from "@/components/OnboardingShell";
 import { useApp } from "@/components/providers/app-provider";
-import { applyAuthToProfile, authErrorMessage, type AuthUser } from "@/lib/auth/client";
+import {
+  applyAuthToProfile,
+  authErrorMessage,
+  type AuthUser,
+} from "@/lib/auth/client";
+import { applySessionToClient } from "@/lib/auth/client-session";
 import { clearLanguageChoice } from "@/lib/storage/onboarding";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const AUTO_DELAY_MS = 800;
 
 export default function SignupPage() {
   const router = useRouter();
@@ -27,17 +33,23 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const attemptRef = useRef("");
 
-  const submit = useCallback(async () => {
+  async function createAccount() {
     const trimmedName = name.trim();
     const trimmedEmail = email.trim().toLowerCase();
-    const attemptKey = `${trimmedName}:${trimmedEmail}:${password}:${confirmPassword}`;
-    if (attemptRef.current === attemptKey) return;
 
-    if (!trimmedName || trimmedName.length < 2) return;
-    if (!EMAIL_PATTERN.test(trimmedEmail)) return;
-    if (password.length < 8) return;
+    if (!trimmedName || trimmedName.length < 2) {
+      setError(strings.authErrorGeneric);
+      return;
+    }
+    if (!EMAIL_PATTERN.test(trimmedEmail)) {
+      setError(strings.authErrorInvalidEmail);
+      return;
+    }
+    if (password.length < 8) {
+      setError(strings.authErrorPasswordShort);
+      return;
+    }
     if (password !== confirmPassword) {
       setError(strings.authErrorPasswordMismatch);
       return;
@@ -49,6 +61,7 @@ export default function SignupPage() {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           name: trimmedName,
           email: trimmedEmail,
@@ -64,55 +77,26 @@ export default function SignupPage() {
       };
 
       if (!res.ok || !data.user) {
-        attemptRef.current = "";
         setError(authErrorMessage(data.message, strings));
         return;
       }
 
-      attemptRef.current = attemptKey;
+      applySessionToClient({
+        id: data.user.id,
+        email: data.user.email,
+        name: data.user.name,
+        lang: data.user.lang,
+      });
       const next = applyAuthToProfile(data.user, profile, prefs);
       setProfile(next.profile);
       setPrefs(next.prefs);
       router.push("/setup/contacts");
     } catch {
-      attemptRef.current = "";
       setError(strings.authErrorGeneric);
     } finally {
       setLoading(false);
     }
-  }, [
-    confirmPassword,
-    email,
-    lang,
-    name,
-    password,
-    prefs,
-    profile,
-    router,
-    setPrefs,
-    setProfile,
-    strings,
-  ]);
-
-  useEffect(() => {
-    const trimmedName = name.trim();
-    const trimmedEmail = email.trim().toLowerCase();
-    if (
-      trimmedName.length < 2 ||
-      !EMAIL_PATTERN.test(trimmedEmail) ||
-      password.length < 8 ||
-      confirmPassword.length < 8
-    ) {
-      attemptRef.current = "";
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      void submit();
-    }, AUTO_DELAY_MS);
-
-    return () => window.clearTimeout(timer);
-  }, [name, email, password, confirmPassword, submit]);
+  }
 
   return (
     <OnboardingShell
@@ -120,8 +104,11 @@ export default function SignupPage() {
       title={strings.authSignup}
       subtitle={strings.authCreateAccount}
       footer={
-        <div className="flex flex-col gap-2 text-[#5a6f85]">
-          <OnboardingLink href="/auth/login">{strings.authHasAccount}</OnboardingLink>
+        <div className="flex flex-col gap-3">
+          <p className={onboardingMutedTextClass}>{strings.authHasAccount}</p>
+          <BigButton href="/auth/login" tone="primary" className="text-xl">
+            {strings.authLoginButton}
+          </BigButton>
           <OnboardingLink
             onClick={() => {
               clearLanguageChoice();
@@ -144,7 +131,6 @@ export default function SignupPage() {
           value={name}
           onChange={(e) => {
             setName(e.target.value);
-            attemptRef.current = "";
             setError("");
           }}
           className={onboardingInputClass}
@@ -162,7 +148,6 @@ export default function SignupPage() {
           value={email}
           onChange={(e) => {
             setEmail(e.target.value);
-            attemptRef.current = "";
             setError("");
           }}
           className={onboardingInputClass}
@@ -179,7 +164,6 @@ export default function SignupPage() {
           value={password}
           onChange={(e) => {
             setPassword(e.target.value);
-            attemptRef.current = "";
             setError("");
           }}
           className={onboardingInputClass}
@@ -196,15 +180,20 @@ export default function SignupPage() {
           value={confirmPassword}
           onChange={(e) => {
             setConfirmPassword(e.target.value);
-            attemptRef.current = "";
             setError("");
           }}
           className={onboardingInputClass}
         />
       </div>
-      {loading ? (
-        <OnboardingStatus tone="loading">{strings.authCreatingAccount}</OnboardingStatus>
-      ) : null}
+
+      <BigButton
+        tone="call"
+        disabled={loading}
+        onClick={() => void createAccount()}
+      >
+        {loading ? strings.authCreatingAccount : strings.authSignupButton}
+      </BigButton>
+
       {error ? <OnboardingStatus tone="error">{error}</OnboardingStatus> : null}
     </OnboardingShell>
   );

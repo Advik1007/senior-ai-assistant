@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { BigButton } from "@/components/BigButton";
 import {
   OnboardingLink,
   OnboardingShell,
@@ -11,79 +12,105 @@ import {
   onboardingMutedTextClass,
 } from "@/components/OnboardingShell";
 import { useApp } from "@/components/providers/app-provider";
-import { authErrorMessage } from "@/lib/auth/client";
-import { clearLanguageChoice } from "@/lib/storage/onboarding";
+import {
+  applyAuthToProfile,
+  authErrorMessage,
+  type AuthUser,
+} from "@/lib/auth/client";
+import { applySessionToClient } from "@/lib/auth/client-session";
+import { clearLanguageChoice, nextPathAfterVerify } from "@/lib/storage/onboarding";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const AUTO_DELAY_MS = 800;
-
-type EmailStatus = "idle" | "waiting" | "sending" | "sent" | "error";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { strings, lang, profile, setProfile } = useApp();
+  const { strings, lang, profile, setProfile, prefs, setPrefs } = useApp();
   const [email, setEmail] = useState(profile.email);
-  const [emailStatus, setEmailStatus] = useState<EmailStatus>("idle");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [emailLinkLoading, setEmailLinkLoading] = useState(false);
   const [error, setError] = useState("");
-  const sentEmailRef = useRef("");
+  const [info, setInfo] = useState("");
 
-  const sendConfirmationEmail = useCallback(
-    async (trimmed: string) => {
-      if (sentEmailRef.current === trimmed) return;
-
-      setEmailStatus("sending");
-      setError("");
-      try {
-        const res = await fetch("/api/auth/send-link", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: trimmed, lang }),
-        });
-
-        const data = (await res.json().catch(() => ({}))) as { message?: string };
-
-        if (!res.ok) {
-          setEmailStatus("error");
-          setError(authErrorMessage(data.message, strings));
-          return;
-        }
-
-        sentEmailRef.current = trimmed;
-        setProfile({ ...profile, email: trimmed });
-        setEmailStatus("sent");
-        router.push(`/auth/check-email?email=${encodeURIComponent(trimmed)}`);
-      } catch {
-        setEmailStatus("error");
-        setError(strings.authErrorGeneric);
-      }
-    },
-    [lang, profile, router, setProfile, strings],
-  );
-
-  useEffect(() => {
+  async function signInWithPassword() {
     const trimmed = email.trim().toLowerCase();
     if (!EMAIL_PATTERN.test(trimmed)) {
-      setEmailStatus("idle");
-      sentEmailRef.current = "";
+      setError(strings.authErrorInvalidEmail);
+      return;
+    }
+    if (!password) {
+      setError(strings.authErrorInvalidCredentials);
       return;
     }
 
-    if (sentEmailRef.current === trimmed) {
-      setEmailStatus("sent");
+    setLoading(true);
+    setError("");
+    setInfo("");
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email: trimmed, password }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        message?: string;
+        user?: AuthUser;
+      };
+
+      if (!res.ok || !data.user) {
+        setError(authErrorMessage(data.message, strings));
+        return;
+      }
+
+      applySessionToClient({
+        id: data.user.id,
+        email: data.user.email,
+        name: data.user.name,
+        lang: data.user.lang,
+      });
+      const next = applyAuthToProfile(data.user, profile, prefs);
+      setProfile(next.profile);
+      setPrefs(next.prefs);
+      router.push(nextPathAfterVerify());
+    } catch {
+      setError(strings.authErrorGeneric);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function sendSafetyEmail() {
+    const trimmed = email.trim().toLowerCase();
+    if (!EMAIL_PATTERN.test(trimmed)) {
+      setError(strings.authErrorInvalidEmail);
       return;
     }
 
-    setEmailStatus("waiting");
-    const timer = window.setTimeout(() => {
-      void sendConfirmationEmail(trimmed);
-    }, AUTO_DELAY_MS);
-
-    return () => window.clearTimeout(timer);
-  }, [email, sendConfirmationEmail]);
-
-  const steps = strings.authLoginSteps.split("\n");
+    setEmailLinkLoading(true);
+    setError("");
+    setInfo("");
+    try {
+      const res = await fetch("/api/auth/send-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmed, lang }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { message?: string };
+      if (!res.ok) {
+        setError(authErrorMessage(data.message, strings));
+        return;
+      }
+      setProfile({ ...profile, email: trimmed });
+      router.push(`/auth/check-email?email=${encodeURIComponent(trimmed)}`);
+    } catch {
+      setError(strings.authErrorGeneric);
+    } finally {
+      setEmailLinkLoading(false);
+    }
+  }
 
   return (
     <OnboardingShell
@@ -91,22 +118,22 @@ export default function LoginPage() {
       title={strings.authLogin}
       subtitle={strings.authLoginSafetyHint}
       footer={
-        <OnboardingLink
-          onClick={() => {
-            clearLanguageChoice();
-            router.push("/");
-          }}
-        >
-          {strings.authChangeLanguage}
-        </OnboardingLink>
+        <div className="flex flex-col gap-3">
+          <p className={onboardingMutedTextClass}>{strings.authNoAccount}</p>
+          <BigButton href="/auth/signup" tone="call" className="text-xl">
+            {strings.authCreateAccount}
+          </BigButton>
+          <OnboardingLink
+            onClick={() => {
+              clearLanguageChoice();
+              router.push("/");
+            }}
+          >
+            {strings.authChangeLanguage}
+          </OnboardingLink>
+        </div>
       }
     >
-      <ol className={`m-0 list-decimal space-y-2 pl-6 ${onboardingMutedTextClass}`}>
-        {steps.map((step) => (
-          <li key={step}>{step.replace(/^\d+\.\s*/, "")}</li>
-        ))}
-      </ol>
-
       <div className="space-y-2">
         <Label htmlFor="email" className={onboardingLabelClass}>
           {strings.authEmail}
@@ -120,19 +147,52 @@ export default function LoginPage() {
           value={email}
           onChange={(e) => {
             setEmail(e.target.value);
-            sentEmailRef.current = "";
             setError("");
           }}
           className={onboardingInputClass}
         />
       </div>
 
-      {emailStatus === "waiting" || emailStatus === "sending" ? (
-        <OnboardingStatus tone="loading">{strings.authSendingEmailLink}</OnboardingStatus>
-      ) : null}
-      {emailStatus === "sent" ? (
-        <OnboardingStatus tone="success">{strings.authVerifyResent}</OnboardingStatus>
-      ) : null}
+      <div className="space-y-2">
+        <Label htmlFor="password" className={onboardingLabelClass}>
+          {strings.authPassword}
+        </Label>
+        <Input
+          id="password"
+          type="password"
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            setError("");
+          }}
+          className={onboardingInputClass}
+        />
+      </div>
+
+      <BigButton
+        tone="primary"
+        disabled={loading}
+        onClick={() => void signInWithPassword()}
+      >
+        {loading ? strings.authLoggingIn : strings.authLoginButton}
+      </BigButton>
+
+      <BigButton
+        tone="muted"
+        disabled={emailLinkLoading}
+        onClick={() => void sendSafetyEmail()}
+      >
+        {emailLinkLoading
+          ? strings.authSendingEmailLink
+          : strings.authEmailLinkButton}
+      </BigButton>
+
+      <BigButton href="/auth/signup" tone="call">
+        {strings.authSignupButton}
+      </BigButton>
+
+      {info ? <OnboardingStatus tone="success">{info}</OnboardingStatus> : null}
       {error ? <OnboardingStatus tone="error">{error}</OnboardingStatus> : null}
     </OnboardingShell>
   );

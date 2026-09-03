@@ -8,6 +8,11 @@ const en: TranslationCatalog = {
   "language.choose": "Select your language",
   "language.continue": "Continue",
   "auth.login": "Sign in to UNK AI",
+  "auth.welcomeTitle": "Welcome to UNK AI",
+  "auth.welcomeBody":
+    "Next: Sign in or create an account. Then set up your contacts, daily routine, and medicines.",
+  "auth.welcomeSteps":
+    "1. Sign in or Create account\n2. Add contacts, routine & medicines\n3. Celebrate — then open Home",
   "auth.loginSteps":
     "1. Enter your email.\n2. Open the safety email we send you.\n3. Tap “Yes, it was me” to open UNK AI.",
   "auth.signup": "Create account",
