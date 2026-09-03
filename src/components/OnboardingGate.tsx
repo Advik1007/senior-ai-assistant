@@ -57,15 +57,19 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // ── Step 1: Language ALWAYS first (no auth check, no session bypass) ──
+    // ── Step 1: Language ALWAYS first ──
     if (!state.languageChosen) {
-      setAllowed(pathname === LANGUAGE_PATH);
-      if (pathname !== LANGUAGE_PATH) router.replace(LANGUAGE_PATH);
+      const onLanguage = pathname === LANGUAGE_PATH;
+      setAllowed(onLanguage);
+      if (!onLanguage) router.replace(LANGUAGE_PATH);
       return;
     }
 
     // Steps 2–4 need server session status
-    if (!ready) return;
+    if (!ready) {
+      setAllowed(false);
+      return;
+    }
 
     // Fully done → home only
     if (isOnboardingFinished(state)) {
