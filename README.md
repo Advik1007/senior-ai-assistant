@@ -90,8 +90,7 @@ creates and stores expiring, single-use verification or password-reset tokens.
    - **Output:** automatic
 3. Add environment variables in the Vercel dashboard (never commit secrets):
    `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `CONTACT_EMAIL`, `AUTH_SECRET`, and
-   **`APP_URL`** set to your public site URL, e.g.
-   `https://your-project.vercel.app` (required for login emails and Android).
+   **`APP_URL`** = `https://senior-ai-assistant-pmvo6m8h7-advik1007.vercel.app` (required for login emails and Android).
 4. Redeploy after changing environment variables.
 
 ## Android app (Vercel)

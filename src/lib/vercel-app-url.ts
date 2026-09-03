@@ -1,3 +1,3 @@
-/** Production Vercel URL for UNK AI (git-main deployment). */
+/** Current Vercel deployment URL for UNK AI. */
 export const VERCEL_APP_URL =
-  "https://senior-ai-assistant-git-main-advik1007.vercel.app";
+  "https://senior-ai-assistant-pmvo6m8h7-advik1007.vercel.app";

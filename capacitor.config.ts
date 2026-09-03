@@ -27,7 +27,7 @@ loadEnvLocal();
 
 /**
  * UNK AI loads the Next.js site from a server URL (local dev or production).
- * Production (Vercel): set CAPACITOR_SERVER_URL and APP_URL to https://your-project.vercel.app
+ * Production: CAPACITOR_SERVER_URL and APP_URL = https://senior-ai-assistant-pmvo6m8h7-advik1007.vercel.app
  * Then run: npm run android:sync:prod
  */
 const serverUrl =

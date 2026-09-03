@@ -1,46 +1,27 @@
 # Vercel environment variables
 
-Add these in **Vercel → senior-ai-assistant → Settings → Environment Variables**  
-for **Production**, then **Redeploy**.
+**Your app URL is only this:**
 
-Copy the values from your local `.env.local` (same keys):
+`https://senior-ai-assistant-pmvo6m8h7-advik1007.vercel.app`
 
-| Name | Notes |
-|------|--------|
-| `RESEND_API_KEY` | Your `re_…` key from Resend |
-| `RESEND_FROM_EMAIL` | `UNK AI <onboarding@resend.dev>` |
-| `AUTH_SECRET` | Long random string (same as local) |
-| `APP_URL` | `https://senior-ai-assistant-git-main-advik1007.vercel.app` |
+There is **no** `app.unk.com` / `app.unk` domain for this project.
 
-Optional:
+## Production env vars (UPPERCASE names)
 
 | Name | Value |
 |------|--------|
-| `CAPACITOR_SERVER_URL` | Same as `APP_URL` |
+| `RESEND_API_KEY` | your `re_…` key |
+| `RESEND_FROM_EMAIL` | `UNK AI <onboarding@resend.dev>` |
+| `AUTH_SECRET` | your long secret |
+| `APP_URL` | `https://senior-ai-assistant-pmvo6m8h7-advik1007.vercel.app` |
+
+Delete any lowercase vars like `app_url` / `resend_api_key`.  
+Delete any `APP_URL` set to `https://app.unk.com`.
+
+Then **Redeploy**.
 
 ## Verify
 
-After redeploy, open:
+`https://senior-ai-assistant-pmvo6m8h7-advik1007.vercel.app/api/auth/status`
 
-`https://senior-ai-assistant-git-main-advik1007.vercel.app/api/auth/status`
-
-Expected:
-
-```json
-{ "emailReady": true, "missing": [] }
-```
-
-## CLI (optional)
-
-If you have Vercel CLI linked:
-
-```bash
-npm run vercel:env
-```
-
-Then redeploy.
-
-## Deployment protection
-
-If users see **“Log in to Vercel”**, turn off **Deployment Protection** for Production  
-in Vercel project settings.
+Expected: `"emailReady": true`

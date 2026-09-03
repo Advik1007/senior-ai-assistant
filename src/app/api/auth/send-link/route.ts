@@ -31,7 +31,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const appUrl = getServerAppUrl();
+    const origin = new URL(request.url).origin;
+    const appUrl = getServerAppUrl(origin);
     const token = await createEmailVerifyToken(email, lang);
     const verifyUrl = `${appUrl.replace(/\/$/, "")}/auth/verify?token=${encodeURIComponent(token)}`;
 
