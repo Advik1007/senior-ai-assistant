@@ -7,12 +7,19 @@ import path from "node:path";
 let client: Client | null = null;
 let schemaReady: Promise<void> | null = null;
 
+/** Strip quotes/whitespace/non-ASCII so Vercel paste glitches don't break Headers. */
+function cleanEnv(value: string | undefined): string {
+  return (value ?? "")
+    .trim()
+    .replace(/^["']+|["']+$/g, "")
+    .replace(/[^\x20-\x7E]/g, "");
+}
+
 function resolveDbConfig(): { url: string; authToken?: string } {
   const tursoUrl =
-    process.env.TURSO_DATABASE_URL?.trim() ||
-    process.env.DATABASE_URL?.trim() ||
-    "";
-  const authToken = process.env.TURSO_AUTH_TOKEN?.trim() || undefined;
+    cleanEnv(process.env.TURSO_DATABASE_URL) ||
+    cleanEnv(process.env.DATABASE_URL);
+  const authToken = cleanEnv(process.env.TURSO_AUTH_TOKEN) || undefined;
 
   // Remote Turso / libSQL (required for reliable Vercel production).
   if (tursoUrl.startsWith("libsql://") || tursoUrl.startsWith("https://")) {

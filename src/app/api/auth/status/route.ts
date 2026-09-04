@@ -21,7 +21,8 @@ export async function GET() {
     await getDb().execute("SELECT 1 AS ok");
     dbReady = true;
   } catch (error) {
-    dbError = error instanceof Error ? error.message.slice(0, 160) : "db_error";
+    const raw = error instanceof Error ? error.message : "db_error";
+    dbError = raw.replace(/[^\x20-\x7E]/g, "?").slice(0, 160);
   }
 
   return NextResponse.json({
