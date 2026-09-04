@@ -1,4 +1,5 @@
-import { VERCEL_APP_URL } from "@/lib/vercel-app-url";
+const FALLBACK_APP_URL =
+  "https://senior-ai-assistant-git-main-advik1007.vercel.app";
 
 const BROKEN_HOSTS = new Set([
   "app.unk.com",
@@ -48,5 +49,5 @@ export function getServerAppUrl(requestOrigin?: string | null): string {
     return normalizeUrl(production);
   }
 
-  return normalizeUrl(VERCEL_APP_URL);
+  return FALLBACK_APP_URL;
 }
