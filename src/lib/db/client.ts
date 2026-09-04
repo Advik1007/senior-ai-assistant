@@ -50,7 +50,7 @@ export async function ensureSchema(): Promise<void> {
       await db.execute(`
         CREATE TABLE IF NOT EXISTS users (
           id TEXT PRIMARY KEY,
-          email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+          email TEXT NOT NULL UNIQUE,
           name TEXT NOT NULL,
           password_hash TEXT NOT NULL,
           lang TEXT NOT NULL DEFAULT 'en',
