@@ -7,14 +7,38 @@ import path from "node:path";
 let client: Client | null = null;
 let schemaReady: Promise<void> | null = null;
 
+function resolveDbConfig(): { url: string; authToken?: string } {
+  const tursoUrl =
+    process.env.TURSO_DATABASE_URL?.trim() ||
+    process.env.DATABASE_URL?.trim() ||
+    "";
+  const authToken = process.env.TURSO_AUTH_TOKEN?.trim() || undefined;
+
+  // Remote Turso / libSQL (required for reliable Vercel production).
+  if (tursoUrl.startsWith("libsql://") || tursoUrl.startsWith("https://")) {
+    return { url: tursoUrl, authToken };
+  }
+
+  // Explicit file URL from env.
+  if (tursoUrl.startsWith("file:")) {
+    return { url: tursoUrl };
+  }
+
+  // Local SQLite. On Vercel the app directory is read-only, so use /tmp.
+  const dataDir = process.env.VERCEL
+    ? path.join("/tmp", "unk-data")
+    : path.join(process.cwd(), "data");
+  mkdirSync(dataDir, { recursive: true });
+  return { url: `file:${path.join(dataDir, "unk.db")}` };
+}
+
 export function getDb(): Client {
   if (!client) {
-    const dataDir = path.join(process.cwd(), "data");
-    mkdirSync(dataDir, { recursive: true });
-    const url =
-      process.env.DATABASE_URL ||
-      `file:${path.join(dataDir, "unk.db")}`;
-    client = createClient({ url });
+    const config = resolveDbConfig();
+    client = createClient({
+      url: config.url,
+      authToken: config.authToken,
+    });
   }
   return client;
 }

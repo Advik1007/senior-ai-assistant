@@ -39,7 +39,11 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ ok: true, user: publicUser });
-  } catch {
+  } catch (error) {
+    const text = error instanceof Error ? error.message : "";
+    if (/ENOENT|readonly|EACCES|SQLITE|database/i.test(text)) {
+      return NextResponse.json({ message: "db_unavailable" }, { status: 503 });
+    }
     return NextResponse.json({ message: "login_failed" }, { status: 500 });
   }
 }

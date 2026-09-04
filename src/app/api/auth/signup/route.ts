@@ -36,18 +36,29 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "password_mismatch" }, { status: 400 });
     }
 
-    const existing = await findUserByEmail(email);
+    let existing;
+    try {
+      existing = await findUserByEmail(email);
+    } catch {
+      return NextResponse.json({ message: "db_unavailable" }, { status: 503 });
+    }
     if (existing) {
       return NextResponse.json({ message: "email_in_use" }, { status: 409 });
     }
 
     const passwordHash = await hashPassword(password);
-    const user = await createUser({
-      email,
-      name,
-      passwordHash,
-      lang,
-    });
+
+    let user;
+    try {
+      user = await createUser({
+        email,
+        name,
+        passwordHash,
+        lang,
+      });
+    } catch {
+      return NextResponse.json({ message: "db_unavailable" }, { status: 503 });
+    }
 
     await setSessionCookie({
       userId: user.id,

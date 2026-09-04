@@ -30,12 +30,14 @@ export function authErrorMessage(
   code: string | undefined,
   strings: {
     authErrorInvalidEmail: string;
+    authErrorNameRequired: string;
     authErrorPasswordShort: string;
     authErrorPasswordMismatch: string;
     authErrorEmailInUse: string;
     authErrorInvalidCredentials: string;
     authErrorSendFailed: string;
     authErrorNotConfigured: string;
+    authErrorDbUnavailable: string;
     authErrorGeneric: string;
   },
 ): string {
@@ -55,7 +57,12 @@ export function authErrorMessage(
     case "not_configured":
       return strings.authErrorNotConfigured;
     case "name_required":
-      return strings.authErrorGeneric;
+      return strings.authErrorNameRequired;
+    case "db_unavailable":
+      return strings.authErrorDbUnavailable;
+    case "login_failed":
+    case "signup_failed":
+      return strings.authErrorDbUnavailable;
     default:
       return strings.authErrorGeneric;
   }

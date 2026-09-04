@@ -49,6 +49,7 @@ const en: TranslationCatalog = {
   "auth.resetButton": "Update password",
   "auth.logout": "Log out",
   "auth.error.invalidEmail": "Please enter a valid email address.",
+  "auth.error.nameRequired": "Please enter your full name (at least 2 letters).",
   "auth.error.passwordShort": "Password must be at least 8 characters.",
   "auth.error.passwordMismatch": "Passwords do not match.",
   "auth.error.emailInUse": "This email is already registered.",
@@ -59,6 +60,8 @@ const en: TranslationCatalog = {
     "We could not send the email. Check the address and try again. With Resend test mode, use the email you signed up with.",
   "auth.error.notConfigured":
     "Login email is not configured on the server. In Vercel → senior-ai-assistant → Settings → Environment Variables (Production), add RESEND_API_KEY, RESEND_FROM_EMAIL, AUTH_SECRET, and APP_URL, then Redeploy.",
+  "auth.error.dbUnavailable":
+    "Account storage is not ready on this server. Add TURSO_DATABASE_URL and TURSO_AUTH_TOKEN in Vercel Environment Variables, then Redeploy.",
   "auth.changeLanguage": "Change language",
   "auth.setupCallsTitle": "Set up your calls",
   "auth.setupCallsHint":
