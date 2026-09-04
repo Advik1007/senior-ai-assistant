@@ -48,7 +48,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "not_configured" }, { status: 503 });
     }
     if (error instanceof EmailDeliveryError) {
-      return NextResponse.json({ message: "send_failed" }, { status: 502 });
+      return NextResponse.json({ message: error.code }, { status: 502 });
     }
     if (error instanceof Error && error.message.includes("AUTH_SECRET")) {
       return NextResponse.json({ message: "not_configured" }, { status: 503 });

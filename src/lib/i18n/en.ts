@@ -57,7 +57,9 @@ const en: TranslationCatalog = {
   "auth.error.generic": "Something went wrong. Please try again.",
   "auth.error.tokenInvalid": "This link is invalid or has expired.",
   "auth.error.sendFailed":
-    "We could not send the email. Check the address and try again. With Resend test mode, use the email you signed up with.",
+    "We could not send the email. Check the address and try again.",
+  "auth.error.resendTestMode":
+    "Email is in Resend test mode (onboarding@resend.dev). It can only send to the email on your Resend account. For other addresses: verify a domain at resend.com/domains, set RESEND_FROM_EMAIL to that domain, Redeploy — or use Sign in with password.",
   "auth.error.notConfigured":
     "Login email is not configured on the server. In Vercel → senior-ai-assistant → Settings → Environment Variables (Production), add RESEND_API_KEY, RESEND_FROM_EMAIL, AUTH_SECRET, and APP_URL, then Redeploy.",
   "auth.error.dbUnavailable":

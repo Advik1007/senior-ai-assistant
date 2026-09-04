@@ -51,6 +51,7 @@ export type TranslationKey =
   | "auth.error.generic"
   | "auth.error.tokenInvalid"
   | "auth.error.sendFailed"
+  | "auth.error.resendTestMode"
   | "auth.error.notConfigured"
   | "auth.error.dbUnavailable"
   | "auth.changeLanguage"

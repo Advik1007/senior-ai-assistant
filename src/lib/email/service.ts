@@ -23,9 +23,16 @@ export class EmailConfigurationError extends Error {
 }
 
 export class EmailDeliveryError extends Error {
-  constructor() {
-    super("The email could not be sent. Please try again later.");
+  readonly code: "send_failed" | "resend_test_mode";
+
+  constructor(code: "send_failed" | "resend_test_mode" = "send_failed") {
+    super(
+      code === "resend_test_mode"
+        ? "Resend test mode can only email the address on your Resend account."
+        : "The email could not be sent. Please try again later.",
+    );
     this.name = "EmailDeliveryError";
+    this.code = code;
   }
 }
 
@@ -72,7 +79,17 @@ async function deliver(input: {
   });
 
   if (error || !data?.id) {
-    throw new EmailDeliveryError();
+    const detail =
+      `${error?.message ?? ""} ${JSON.stringify(error ?? {})}`.toLowerCase();
+    const usingResendTestFrom = from.toLowerCase().includes("onboarding@resend.dev");
+    const testModeOnly =
+      usingResendTestFrom ||
+      detail.includes("only send testing emails to your own email") ||
+      detail.includes("you can only send testing emails") ||
+      detail.includes("verify a domain");
+    throw new EmailDeliveryError(
+      testModeOnly ? "resend_test_mode" : "send_failed",
+    );
   }
 
   return { id: data.id };

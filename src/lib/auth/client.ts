@@ -36,6 +36,7 @@ export function authErrorMessage(
     authErrorEmailInUse: string;
     authErrorInvalidCredentials: string;
     authErrorSendFailed: string;
+    authErrorResendTestMode: string;
     authErrorNotConfigured: string;
     authErrorDbUnavailable: string;
     authErrorGeneric: string;
@@ -52,6 +53,8 @@ export function authErrorMessage(
       return strings.authErrorEmailInUse;
     case "invalid_credentials":
       return strings.authErrorInvalidCredentials;
+    case "resend_test_mode":
+      return strings.authErrorResendTestMode;
     case "send_failed":
       return strings.authErrorSendFailed;
     case "not_configured":

@@ -262,6 +262,7 @@ export function catalogToNested(c: TranslationCatalog) {
     authErrorGeneric: c["auth.error.generic"],
     authErrorTokenInvalid: c["auth.error.tokenInvalid"],
     authErrorSendFailed: c["auth.error.sendFailed"],
+    authErrorResendTestMode: c["auth.error.resendTestMode"],
     authErrorNotConfigured: c["auth.error.notConfigured"],
     authErrorDbUnavailable: c["auth.error.dbUnavailable"],
     authChangeLanguage: c["auth.changeLanguage"],
