@@ -24,6 +24,16 @@ import { Label } from "@/components/ui/label";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+function normalizeEmailInput(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/@gamil\.com$/i, "@gmail.com")
+    .replace(/@gmial\.com$/i, "@gmail.com")
+    .replace(/@yaho\.com$/i, "@yahoo.com")
+    .replace(/@hotnail\.com$/i, "@hotmail.com");
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const { strings, lang, profile, setProfile, prefs, setPrefs } = useApp();
@@ -35,7 +45,10 @@ export default function LoginPage() {
   const [info, setInfo] = useState("");
 
   async function signInWithPassword() {
-    const trimmed = email.trim().toLowerCase();
+    const trimmed = normalizeEmailInput(email);
+    if (trimmed !== email.trim().toLowerCase()) {
+      setEmail(trimmed);
+    }
     if (!EMAIL_PATTERN.test(trimmed)) {
       setError(strings.authErrorInvalidEmail);
       return;
@@ -83,7 +96,10 @@ export default function LoginPage() {
   }
 
   async function sendSafetyEmail() {
-    const trimmed = email.trim().toLowerCase();
+    const trimmed = normalizeEmailInput(email);
+    if (trimmed !== email.trim().toLowerCase()) {
+      setEmail(trimmed);
+    }
     if (!EMAIL_PATTERN.test(trimmed)) {
       setError(strings.authErrorInvalidEmail);
       return;

@@ -24,6 +24,16 @@ import { Label } from "@/components/ui/label";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+function normalizeEmailInput(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/@gamil\.com$/i, "@gmail.com")
+    .replace(/@gmial\.com$/i, "@gmail.com")
+    .replace(/@yaho\.com$/i, "@yahoo.com")
+    .replace(/@hotnail\.com$/i, "@hotmail.com");
+}
+
 export default function SignupPage() {
   const router = useRouter();
   const { strings, lang, profile, setProfile, prefs, setPrefs } = useApp();
@@ -36,10 +46,13 @@ export default function SignupPage() {
 
   async function createAccount() {
     const trimmedName = name.trim();
-    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedEmail = normalizeEmailInput(email);
+    if (trimmedEmail !== email.trim().toLowerCase()) {
+      setEmail(trimmedEmail);
+    }
 
     if (!trimmedName || trimmedName.length < 2) {
-      setError(strings.authErrorGeneric);
+      setError(strings.authErrorNameRequired);
       return;
     }
     if (!EMAIL_PATTERN.test(trimmedEmail)) {
