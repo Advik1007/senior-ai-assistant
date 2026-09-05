@@ -13,8 +13,13 @@ function cleanEnv(value: string | undefined): string {
 export async function GET() {
   const missing = getMissingEmailEnv();
   const relatedKeys = Object.keys(process.env)
-    .filter((key) => /RESEND|AUTH|TURSO|DATABASE/i.test(key))
+    .filter((key) => /RESEND|AUTH|TURSO|DATABASE|GEMINI|^AI_/i.test(key))
     .sort();
+
+  const hasAiKey = Boolean(
+    cleanEnv(process.env.GEMINI_API_KEY) || cleanEnv(process.env.AI_API_KEY),
+  );
+  const aiModel = cleanEnv(process.env.AI_MODEL) || null;
 
   const tursoUrl = cleanEnv(
     process.env.TURSO_DATABASE_URL || process.env.DATABASE_URL,
@@ -50,6 +55,8 @@ export async function GET() {
     hasTursoUrl,
     hasTursoToken,
     tokenLooksJwt,
+    hasAiKey,
+    aiModel,
     tursoHost: hasTursoUrl
       ? tursoUrl
           .replace(/^libsql:\/\//, "")
@@ -65,6 +72,8 @@ export async function GET() {
     hint:
       missing.length > 0 || !dbReady
         ? "Update TURSO_DATABASE_URL + TURSO_AUTH_TOKEN in Vercel Production, then Redeploy (env changes do not apply until redeploy)."
-        : undefined,
+        : !hasAiKey
+          ? "Optional: add GEMINI_API_KEY (+ AI_MODEL=gemini-3.6-flash) for smarter Talk replies."
+          : undefined,
   });
 }
