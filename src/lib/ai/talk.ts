@@ -4,14 +4,27 @@ import { aiPhrase } from "@/lib/ai/phrases";
 import { completeJsonChat, hasAiApiKey } from "@/lib/ai/provider";
 import type { AppLanguage } from "@/lib/languages";
 import { languageByCode } from "@/lib/languages";
+import {
+  formatReminderWhen,
+  parseReminderSpeech,
+} from "@/lib/routine/parse-reminder";
+import { toDateKey } from "@/lib/storage/routines";
 
 export type TalkAction =
   | { type: "open_medical" }
   | { type: "open_doctor_nearby" }
   | { type: "open_shopping" }
-  | { type: "open_routine" }
+  | { type: "open_routine"; date?: string }
   | { type: "open_emergency" }
-  | { type: "open_help" };
+  | { type: "open_help" }
+  | {
+      type: "create_reminder";
+      title: string;
+      date?: string;
+      time?: string;
+      days?: string;
+      kind?: "reminder" | "medicine" | "appointment" | "task";
+    };
 
 export type TalkInput = {
   message: string;
@@ -46,6 +59,36 @@ function localTalk(input: TalkInput): TalkOutput {
 
   if (
     includesAny(text, [
+      "remind me",
+      "reminder",
+      "याद दिला",
+      "યાદ અપાવ",
+    ])
+  ) {
+    const parsed = parseReminderSpeech(
+      input.message,
+      say("ai.reminderLabel"),
+    );
+    if (parsed) {
+      return {
+        reply: say("ai.reminderSaved", {
+          when: formatReminderWhen(parsed),
+        }),
+        action: {
+          type: "create_reminder",
+          title: parsed.title,
+          date: parsed.date,
+          time: parsed.time || undefined,
+          days: parsed.days,
+          kind: parsed.kind,
+        },
+      };
+    }
+    return { reply: say("ai.openRoutine"), action: { type: "open_routine" } };
+  }
+
+  if (
+    includesAny(text, [
       "emergency",
       "ambulance",
       "police",
@@ -76,11 +119,9 @@ function localTalk(input: TalkInput): TalkOutput {
 
   if (
     includesAny(text, [
-      "remind me",
-      "reminder",
       "routine",
       "schedule",
-      "tomorrow",
+      "calendar",
       "दिनचर्या",
       "દિનચર્યા",
     ])
@@ -196,15 +237,55 @@ SAFETY:
 - Do not help with crime, weapons, or self-harm methods. For crisis feelings, be supportive and suggest contacting emergency/family help.
 
 OPTIONAL APP ACTIONS (only when clearly useful):
-"open_medical" | "open_doctor_nearby" | "open_shopping" | "open_routine" | "open_emergency" | "open_help"
+- "open_medical" | "open_doctor_nearby" | "open_shopping" | "open_routine" | "open_emergency" | "open_help"
+- For reminders like "remind me on the 25th to go to the doctor", set action to an object:
+  { "type": "create_reminder", "title": string, "date": "YYYY-MM-DD" (optional), "time": "HH:mm" (optional), "days": "once"|"recurring", "kind": "reminder"|"appointment" }
+  Resolve "the 25th" to the next upcoming calendar date (today's year/month). Prefer kind "appointment" for doctor visits.
 Otherwise set "action": null.
 
 Return ONLY JSON:
-{ "reply": string, "action": null | "open_medical" | "open_doctor_nearby" | "open_shopping" | "open_routine" | "open_emergency" | "open_help", "memoryUpdates": string[] }
+{ "reply": string, "action": null | string | object, "memoryUpdates": string[] }
 memoryUpdates: only safe personal preferences (foods, hobbies, likes) — never medical diagnoses.`;
 }
 
-const ACTION_MAP: Record<string, TalkAction["type"]> = {
+function normalizeTalkAction(raw: unknown): TalkAction | undefined {
+  if (!raw) return undefined;
+  if (typeof raw === "string") {
+    const simple = ACTION_MAP[raw];
+    return simple ? ({ type: simple } as TalkAction) : undefined;
+  }
+  if (typeof raw !== "object") return undefined;
+  const obj = raw as Record<string, unknown>;
+  const type = String(obj.type ?? "");
+  if (type === "create_reminder") {
+    const title = String(obj.title ?? "").trim();
+    if (!title) return undefined;
+    return {
+      type: "create_reminder",
+      title,
+      date: typeof obj.date === "string" ? obj.date : undefined,
+      time: typeof obj.time === "string" ? obj.time : undefined,
+      days: typeof obj.days === "string" ? obj.days : "once",
+      kind:
+        obj.kind === "appointment" ||
+        obj.kind === "medicine" ||
+        obj.kind === "task" ||
+        obj.kind === "reminder"
+          ? obj.kind
+          : "reminder",
+    };
+  }
+  if (type === "open_routine") {
+    return {
+      type: "open_routine",
+      date: typeof obj.date === "string" ? obj.date : undefined,
+    };
+  }
+  const simple = ACTION_MAP[type];
+  return simple ? ({ type: simple } as TalkAction) : undefined;
+}
+
+const ACTION_MAP: Record<string, Exclude<TalkAction["type"], "create_reminder">> = {
   open_medical: "open_medical",
   open_doctor_nearby: "open_doctor_nearby",
   open_shopping: "open_shopping",
@@ -214,17 +295,28 @@ const ACTION_MAP: Record<string, TalkAction["type"]> = {
 };
 
 export async function generateTalkReply(input: TalkInput): Promise<TalkOutput> {
+  // Prefer deterministic dated-reminder parsing before calling the model.
+  const localReminder = parseReminderSpeech(
+    input.message,
+    aiPhrase(input.lang, "ai.reminderLabel"),
+  );
+  if (localReminder?.date || (localReminder && /\bremind\b/i.test(input.message))) {
+    const fromLocal = localTalk(input);
+    if (fromLocal.action?.type === "create_reminder") return fromLocal;
+  }
+
   if (!hasAiApiKey()) return localTalk(input);
 
   try {
     const meta = languageByCode(input.lang);
+    const today = toDateKey(new Date());
     const raw = await completeJsonChat({
       system: buildSystemPrompt(input.lang),
       temperature: 0.9,
       messages: [
         {
           role: "system",
-          content: `Reply language MUST be ${meta.englishName} (${meta.htmlLang}, ${meta.nativeLabel}). User name: ${input.userName}. Known preferences: ${input.memory.join("; ") || "none"}. Chat freely about whatever they bring up.`,
+          content: `Reply language MUST be ${meta.englishName} (${meta.htmlLang}, ${meta.nativeLabel}). User name: ${input.userName}. Known preferences: ${input.memory.join("; ") || "none"}. Today is ${today}. Chat freely about whatever they bring up.`,
         },
         ...input.history.slice(-16),
         { role: "user", content: input.message },
@@ -235,15 +327,15 @@ export async function generateTalkReply(input: TalkInput): Promise<TalkOutput> {
 
     const parsed = JSON.parse(raw) as {
       reply?: string;
-      action?: string | null;
+      action?: unknown;
       memoryUpdates?: string[];
     };
 
-    const actionType = parsed.action ? ACTION_MAP[parsed.action] : undefined;
+    const action = normalizeTalkAction(parsed.action);
 
     return {
       reply: parsed.reply || localTalk(input).reply,
-      action: actionType ? { type: actionType } : undefined,
+      action,
       memoryUpdates: parsed.memoryUpdates,
     };
   } catch {

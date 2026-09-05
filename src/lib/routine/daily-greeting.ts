@@ -1,5 +1,6 @@
 import type { MedicineReminder } from "@/lib/storage/medical-profile";
 import type { RoutineItem } from "@/lib/storage/routines";
+import { toDateKey } from "@/lib/storage/routines";
 import { formatRoutineTime } from "@/lib/setup/parse-routine";
 
 const GREETING_KEY = "unk.lastGreetingDate";
@@ -10,13 +11,13 @@ export function greetingStorageKey(): string {
 
 export function shouldGreetToday(): boolean {
   if (typeof window === "undefined") return false;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = toDateKey(new Date());
   return localStorage.getItem(GREETING_KEY) !== today;
 }
 
 export function markGreetedToday(): void {
   if (typeof window === "undefined") return;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = toDateKey(new Date());
   localStorage.setItem(GREETING_KEY, today);
 }
 
@@ -36,8 +37,15 @@ export function collectTodayItems(
   medicines: MedicineReminder[],
 ): GreetingParts["items"] {
   const items: GreetingParts["items"] = [];
+  const today = toDateKey(new Date());
 
   for (const r of routines) {
+    if (r.date) {
+      if (r.date === today) {
+        items.push({ label: r.title, time: r.time || "00:00" });
+      }
+      continue;
+    }
     if (r.days === "once") continue;
     items.push({ label: r.title, time: r.time });
   }

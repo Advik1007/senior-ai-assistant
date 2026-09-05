@@ -23,11 +23,32 @@ import {
 } from "@/lib/speech";
 import { doctorsNearMeUrl, directionsUrl } from "@/lib/maps";
 import { findContactByName, findContactByRelationship } from "@/lib/storage/contacts";
+import { addRoutine } from "@/lib/storage/routines";
 import { useApp } from "@/components/providers/app-provider";
 import { BigButton } from "@/components/BigButton";
 import { ConfirmCallDialog } from "@/components/ConfirmCallDialog";
 import { VoiceStatus, type VoicePhase } from "@/components/VoiceStatus";
 import { Textarea } from "@/components/ui/textarea";
+
+function applyCreateReminder(args: {
+  title?: string;
+  time?: string;
+  days?: string;
+  date?: string;
+  kind?: "reminder" | "medicine" | "appointment" | "task";
+}): string {
+  const title = args.title?.trim() || "Reminder";
+  addRoutine({
+    title,
+    time: args.time?.trim() || "",
+    days: args.days?.trim() || (args.date ? "once" : "recurring"),
+    date: args.date,
+    kind: args.kind || "reminder",
+  });
+  return args.date
+    ? `/routine?date=${encodeURIComponent(args.date)}`
+    : "/routine";
+}
 
 function toolPath(tool: ToolCall): string | null {
   switch (tool.name) {
@@ -51,23 +72,47 @@ function toolPath(tool: ToolCall): string | null {
       }
       return null;
     }
-    case "create_reminder":
+    case "create_reminder": {
+      // Local assistant may have already saved; saving again with same content is ok (new id).
+      // Prefer navigating to the date without double-adding when title already just saved.
+      if (tool.args.date) {
+        return `/routine?date=${encodeURIComponent(tool.args.date)}`;
+      }
       return "/routine";
+    }
     default:
       return null;
   }
 }
 
-function routeForTalkAction(type: string): string | null {
-  switch (type) {
+function routeForTalkAction(
+  action: { type: string } & Record<string, unknown>,
+): string | null {
+  switch (action.type) {
     case "open_medical":
       return "/medical";
     case "open_doctor_nearby":
       return "/doctor?nearby=1";
     case "open_shopping":
       return "/shopping";
-    case "open_routine":
-      return "/routine";
+    case "open_routine": {
+      const date = typeof action.date === "string" ? action.date : undefined;
+      return date ? `/routine?date=${encodeURIComponent(date)}` : "/routine";
+    }
+    case "create_reminder":
+      return applyCreateReminder({
+        title: typeof action.title === "string" ? action.title : undefined,
+        time: typeof action.time === "string" ? action.time : undefined,
+        days: typeof action.days === "string" ? action.days : undefined,
+        date: typeof action.date === "string" ? action.date : undefined,
+        kind:
+          action.kind === "appointment" ||
+          action.kind === "medicine" ||
+          action.kind === "task" ||
+          action.kind === "reminder"
+            ? action.kind
+            : "reminder",
+      });
     case "open_emergency":
       return "/emergency";
     case "open_help":
@@ -226,7 +271,7 @@ export function VoiceAssistant({
             });
             const data = (await res.json()) as {
               reply?: string;
-              action?: { type: string };
+              action?: { type: string } & Record<string, unknown>;
               memoryUpdates?: string[];
             };
             const reply =
@@ -246,10 +291,8 @@ export function VoiceAssistant({
               window.setTimeout(() => {
                 window.open(doctorsNearMeUrl(), "_blank", "noopener,noreferrer");
               }, 1600);
-            } else {
-              const path = data.action?.type
-                ? routeForTalkAction(data.action.type)
-                : null;
+            } else if (data.action) {
+              const path = routeForTalkAction(data.action);
               if (path) window.setTimeout(() => router.push(path), 1600);
             }
           } catch {

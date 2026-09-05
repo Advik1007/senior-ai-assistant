@@ -3,6 +3,10 @@ import { aiPhrase } from "@/lib/ai/phrases";
 import type { ToolCall } from "@/lib/ai/tools";
 import type { AppLanguage } from "@/lib/languages";
 import {
+  formatReminderWhen,
+  parseReminderSpeech,
+} from "@/lib/routine/parse-reminder";
+import {
   findContactByName,
   findContactByRelationship,
 } from "@/lib/storage/contacts";
@@ -157,6 +161,66 @@ export function interpretUserSpeech(
 
   if (
     includesAny(text, [
+      "remind me",
+      "reminder",
+      "every morning",
+      "every day",
+      "every sunday",
+      "याद दिला",
+      "યાદ અપાવ",
+    ])
+  ) {
+    const parsed = parseReminderSpeech(
+      raw,
+      say("ai.reminderLabel"),
+    );
+    if (parsed) {
+      addRoutine({
+        title: parsed.title,
+        time: parsed.time || "",
+        days: parsed.days,
+        date: parsed.date,
+        kind: parsed.kind,
+      });
+      const when = formatReminderWhen(parsed);
+      return {
+        spokenText: say("ai.reminderSaved", { when }),
+        toolCall: {
+          name: "create_reminder",
+          args: {
+            title: parsed.title,
+            time: parsed.time || undefined,
+            days: parsed.days,
+            date: parsed.date,
+            kind: parsed.kind,
+          },
+        },
+      };
+    }
+    const when = extractWhen(text);
+    if (when) {
+      const title =
+        text.replace(/remind me\s+(?:to\s+)?/i, "").trim() ||
+        say("ai.reminderLabel");
+      addRoutine({
+        title: title.slice(0, 120),
+        time: when,
+        days: text.includes("every") ? "recurring" : "once",
+        kind: "reminder",
+      });
+      return {
+        spokenText: say("ai.reminderSaved", { when }),
+        toolCall: { name: "open_routine", args: {} },
+      };
+    }
+    return {
+      spokenText: say("ai.openRoutine"),
+      toolCall: { name: "open_routine", args: {} },
+    };
+  }
+
+  if (
+    includesAny(text, [
       "grocery",
       "groceries",
       "shop",
@@ -171,37 +235,6 @@ export function interpretUserSpeech(
     return {
       spokenText: say("ai.shopping"),
       toolCall: { name: "open_shopping", args: {} },
-    };
-  }
-
-  if (
-    includesAny(text, [
-      "remind me",
-      "reminder",
-      "every morning",
-      "every day",
-      "every sunday",
-      "याद दिला",
-      "યાદ અપાવ",
-    ])
-  ) {
-    const when = extractWhen(text);
-    const title =
-      text.replace(/remind me\s+(?:to\s+)?/i, "").trim() ||
-      say("ai.reminderLabel");
-    if (when) {
-      addRoutine({
-        title: title.slice(0, 120),
-        time: when,
-        days: text.includes("every") ? "recurring" : "once",
-        kind: "reminder",
-      });
-    }
-    return {
-      spokenText: when
-        ? say("ai.reminderSaved", { when })
-        : say("ai.openRoutine"),
-      toolCall: { name: "open_routine", args: {} },
     };
   }
 

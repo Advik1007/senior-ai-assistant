@@ -28,6 +28,8 @@ export type CreateReminderArgs = {
   title?: string;
   time?: string;
   days?: string;
+  date?: string;
+  kind?: "reminder" | "medicine" | "appointment" | "task";
 };
 
 export type OpenDoctorArgs = Record<string, never>;
