@@ -1,5 +1,6 @@
 import "server-only";
 
+import { completeJsonChat, hasAiApiKey } from "@/lib/ai/provider";
 import { runClinicalTriage, type TriageInput, type TriageResult } from "@/lib/doctor/triage-engine";
 
 type AiDiagnosis = {
@@ -32,12 +33,9 @@ Rules:
 export async function diagnoseSymptoms(
   input: TriageInput & { lang: string },
 ): Promise<TriageResult & { source: "ai" | "engine" }> {
-  const apiKey = process.env.AI_API_KEY;
   const base = runClinicalTriage({ ...input, lang: input.lang });
 
-  // Keep Hindi (and other non-English) on the localized rule engine so UI
-  // chrome and clinical text stay in the same language.
-  if (!apiKey || input.lang !== "en") {
+  if (!hasAiApiKey()) {
     return { ...base, source: "engine" };
   }
 
@@ -52,31 +50,12 @@ export async function diagnoseSymptoms(
       engineBaseline: base,
     });
 
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: process.env.AI_MODEL || "gpt-4o-mini",
-        temperature: 0.2,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: SYSTEM },
-          { role: "user", content: userPayload },
-        ],
-      }),
+    const raw = await completeJsonChat({
+      system: SYSTEM,
+      temperature: 0.2,
+      messages: [{ role: "user", content: userPayload }],
     });
 
-    if (!res.ok) {
-      return { ...base, source: "engine" };
-    }
-
-    const data = (await res.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-    const raw = data.choices?.[0]?.message?.content;
     if (!raw) return { ...base, source: "engine" };
 
     const parsed = JSON.parse(raw) as AiDiagnosis;

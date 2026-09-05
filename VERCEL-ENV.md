@@ -11,7 +11,9 @@
 | `AUTH_SECRET` | your long secret |
 | `APP_URL` | `https://senior-ai-assistant-git-main-advik1007.vercel.app` |
 | `TURSO_DATABASE_URL` | `libsql://….turso.io` (from Turso) |
-| `TURSO_AUTH_TOKEN` | token from Turso |
+| `TURSO_AUTH_TOKEN` | database token from Turso |
+| `GEMINI_API_KEY` | Google AI Studio key (`AQ.…`) for Talk + Doctor AI |
+| `AI_MODEL` | `gemini-2.0-flash` (optional) |
 
 Without Turso, **Create account** fails on Vercel (no writable local database).
 

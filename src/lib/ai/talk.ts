@@ -1,6 +1,7 @@
 import "server-only";
 
 import { aiPhrase } from "@/lib/ai/phrases";
+import { completeJsonChat, hasAiApiKey } from "@/lib/ai/provider";
 import type { AppLanguage } from "@/lib/languages";
 import { languageByCode } from "@/lib/languages";
 
@@ -173,39 +174,23 @@ const ACTION_MAP: Record<string, TalkAction["type"]> = {
 };
 
 export async function generateTalkReply(input: TalkInput): Promise<TalkOutput> {
-  const apiKey = process.env.AI_API_KEY;
-  if (!apiKey) return localTalk(input);
+  if (!hasAiApiKey()) return localTalk(input);
 
   try {
     const meta = languageByCode(input.lang);
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: process.env.AI_MODEL || "gpt-4o-mini",
-        temperature: 0.7,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: buildSystemPrompt(input.lang) },
-          {
-            role: "system",
-            content: `Reply language MUST be ${meta.englishName} (${meta.htmlLang}, ${meta.nativeLabel}). User name: ${input.userName}. Memory: ${input.memory.join("; ") || "none"}`,
-          },
-          ...input.history.slice(-8),
-          { role: "user", content: input.message },
-        ],
-      }),
+    const raw = await completeJsonChat({
+      system: buildSystemPrompt(input.lang),
+      temperature: 0.7,
+      messages: [
+        {
+          role: "system",
+          content: `Reply language MUST be ${meta.englishName} (${meta.htmlLang}, ${meta.nativeLabel}). User name: ${input.userName}. Memory: ${input.memory.join("; ") || "none"}`,
+        },
+        ...input.history.slice(-8),
+        { role: "user", content: input.message },
+      ],
     });
 
-    if (!res.ok) return localTalk(input);
-
-    const data = (await res.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-    const raw = data.choices?.[0]?.message?.content;
     if (!raw) return localTalk(input);
 
     const parsed = JSON.parse(raw) as {
