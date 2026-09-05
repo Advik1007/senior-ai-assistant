@@ -285,9 +285,11 @@ const en: TranslationCatalog = {
   "ai.noContact": "I could not find that family member. Open Settings to add their number.",
   "ai.remember": "Got it, {name}. I'll keep that in mind.",
   "ai.hello": "Hey {name}! Good to hear from you. What's on your mind?",
+  "ai.bored":
+    "I hear you, {name}. Try a short walk, call a family member, make tea, listen to a favorite song, stretch gently, or look at old photos. Want me to open Family call, Routine, or Shopping?",
   "ai.thanks": "Anytime, {name}. I'm here.",
   "ai.sad": "I'm sorry you're going through that, {name}. Want to tell me more? I'm here to listen.",
-  "ai.default": "I hear you, {name}. You can talk about anything — your day, reminders, medicine, shopping, directions, or finding a doctor. What would help right now?",
+  "ai.default": "I hear you, {name}. You can talk about anything — your day, boredom, reminders, medicine, shopping, directions, or finding a doctor. What would help right now?",
   "ai.error": "I had trouble just now. Please try again, or tap Medical or Emergency.",
   "ai.friend": "friend",
   "ai.reminderLabel": "Reminder",

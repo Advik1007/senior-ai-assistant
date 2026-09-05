@@ -263,6 +263,7 @@ export type TranslationKey =
   | "ai.noContact"
   | "ai.remember"
   | "ai.hello"
+  | "ai.bored"
   | "ai.thanks"
   | "ai.sad"
   | "ai.default"

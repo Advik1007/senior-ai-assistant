@@ -121,13 +121,26 @@ function localTalk(input: TalkInput): TalkOutput {
 
   if (
     includesAny(text, [
+      "bored",
+      "boring",
+      "nothing to do",
+      "free time",
+      "बोर",
+      "बोरियत",
+      "कुछ नहीं करना",
+    ])
+  ) {
+    return { reply: say("ai.bored", { name }) };
+  }
+
+  if (
+    includesAny(text, [
       "hello",
       "hi",
       "hey",
       "what's up",
       "namaste",
       "how are you",
-      "bored",
       "नमस्ते",
       "નમસ્તે",
     ])
@@ -139,7 +152,16 @@ function localTalk(input: TalkInput): TalkOutput {
     return { reply: say("ai.thanks", { name }) };
   }
 
-  if (includesAny(text, ["bad day", "sad", "lonely", "worried"])) {
+  if (
+    includesAny(text, [
+      "bad day",
+      "sad",
+      "lonely",
+      "worried",
+      "अकेला",
+      "उदास",
+    ])
+  ) {
     return { reply: say("ai.sad", { name }) };
   }
 
@@ -154,7 +176,14 @@ CRITICAL LANGUAGE RULE:
 - The user's selected language is ${meta.englishName} (${meta.nativeLabel}).
 - You MUST write the entire "reply" field ONLY in ${meta.englishName} using ${meta.nativeLabel} script/words.
 - Do NOT reply in English unless the selected language is English.
-- Keep replies short (2-4 sentences), simple, spoken aloud.
+- Keep replies short (2-5 sentences), simple, spoken aloud.
+
+COMPANIONSHIP (very important):
+- Chat naturally about everyday life: greetings, boredom, loneliness, family, weather, food, memories, hobbies.
+- If the user says they are bored, sad, lonely, or "nothing to do", suggest 3-5 gentle, practical activities suitable for older adults (e.g. short walk, call family, make tea, listen to music, stretch, look at photos, light reading, water plants, watch a favorite show).
+- Offer to help open Family call, Routine, Shopping, or Doctor when useful.
+- Ask one friendly follow-up question so the conversation continues.
+- Be encouraging and patient. Never sound like a menu of app features only.
 
 Speak naturally like a caring friend. Avoid robotic phrases.
 Never prescribe medication or change doses.
