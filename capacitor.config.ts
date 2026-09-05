@@ -39,13 +39,17 @@ const config: CapacitorConfig = {
   appId: "ai.unk.app",
   appName: "UNK AI",
   webDir: "public",
-  server: serverUrl
-    ? {
-        url: serverUrl,
-        cleartext: serverUrl.startsWith("http://"),
-        androidScheme: serverUrl.startsWith("https://") ? "https" : "http",
-      }
-    : undefined,
+  server: {
+    ...(serverUrl
+      ? {
+          url: serverUrl,
+          cleartext: serverUrl.startsWith("http://"),
+          androidScheme: serverUrl.startsWith("https://") ? "https" : "http",
+        }
+      : {}),
+    // Local loading page + auto-retry instead of Chrome "webpage could not be loaded"
+    errorPath: "offline.html",
+  },
   android: {
     allowMixedContent: true,
   },

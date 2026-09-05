@@ -42,8 +42,13 @@ export function SetupVoiceField({
 
   const startListening = useCallback(() => {
     stopSpeaking();
+    // Show red listening state immediately on tap.
+    setListening(true);
     const rec = getSpeechRecognition();
-    if (!rec) return;
+    if (!rec) {
+      setListening(false);
+      return;
+    }
     recognitionRef.current = rec;
     rec.lang = speechLocale(lang);
     rec.interimResults = false;
@@ -57,11 +62,11 @@ export function SetupVoiceField({
     rec.onend = () => setListening(false);
     try {
       rec.start();
-      setListening(true);
     } catch {
       setListening(false);
     }
   }, [lang, onChange]);
+
 
   return (
     <div className="flex flex-col gap-4">
@@ -80,6 +85,11 @@ export function SetupVoiceField({
       <div className="flex flex-col gap-3 sm:flex-row">
         <BigButton
           tone={listening ? "help" : "primary"}
+          className={
+            listening
+              ? "ring-4 ring-[#FF1744]/50"
+              : "active:bg-[#B00020] active:border-[#8A0018]"
+          }
           icon={<Mic className="size-7" />}
           onClick={() => (listening ? stopListening() : startListening())}
         >

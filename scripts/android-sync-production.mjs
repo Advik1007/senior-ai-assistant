@@ -53,6 +53,13 @@ Then run: npm run android:sync:prod
 process.env.CAPACITOR_SERVER_URL = url;
 process.env.APP_URL = process.env.APP_URL || url;
 
+// Keep offline auto-reload pointed at the same production URL.
+fs.writeFileSync(
+  path.join(process.cwd(), "public", "offline-config.js"),
+  `/** Written by android:sync:prod — do not edit by hand. */\n` +
+    `window.UNK_SERVER_URL = ${JSON.stringify(url)};\n`,
+);
+
 console.log(`Syncing Android app → ${url}`);
 execSync("npx cap sync android", { stdio: "inherit", env: process.env });
 console.log("Done. Open Android Studio: npm run android:open");

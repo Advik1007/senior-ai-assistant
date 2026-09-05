@@ -19,6 +19,7 @@
     "@capacitor/app": "^8.1.1",
     "@capacitor/core": "^8.5.1",
     "@capacitor/splash-screen": "^8.0.2",
+    "@capgo/capacitor-speech-recognition": "^8.2.0",
     "@libsql/client": "^0.17.4",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",

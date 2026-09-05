@@ -321,6 +321,8 @@ export function VoiceAssistant({
 
   const startListening = useCallback(() => {
     stopSpeaking();
+    // Show red listening state immediately on tap.
+    setPhase("listening");
     const rec = getSpeechRecognition();
     if (!rec) {
       setVoiceSupported(false);
@@ -342,11 +344,11 @@ export function VoiceAssistant({
     };
     try {
       rec.start();
-      setPhase("listening");
     } catch {
       setPhase("idle");
     }
   }, [prefs.language]);
+
 
   useEffect(() => {
     pendingCallRef.current = pendingCall;
@@ -408,6 +410,11 @@ export function VoiceAssistant({
 
       <BigButton
         tone={phase === "listening" ? "help" : "primary"}
+        className={
+          phase === "listening"
+            ? "ring-4 ring-[#FF1744]/50"
+            : "active:bg-[#B00020] active:border-[#8A0018]"
+        }
         icon={<Mic className="size-8" />}
         onClick={() => {
           if (phase === "listening") {
@@ -420,6 +427,7 @@ export function VoiceAssistant({
       >
         {phase === "listening" ? strings.stop : strings.tapToSpeak}
       </BigButton>
+
 
       <div className="flex flex-col gap-3">
           <label className="text-xl font-bold" htmlFor="unk-type">
