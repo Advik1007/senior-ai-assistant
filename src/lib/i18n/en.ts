@@ -289,7 +289,8 @@ const en: TranslationCatalog = {
     "I hear you, {name}. Try a short walk, call a family member, make tea, listen to a favorite song, stretch gently, or look at old photos. Want me to open Family call, Routine, or Shopping?",
   "ai.thanks": "Anytime, {name}. I'm here.",
   "ai.sad": "I'm sorry you're going through that, {name}. Want to tell me more? I'm here to listen.",
-  "ai.default": "I hear you, {name}. You can talk about anything — your day, boredom, reminders, medicine, shopping, directions, or finding a doctor. What would help right now?",
+  "ai.default":
+    "I'm listening, {name}. Ask me anything — stories, ideas, boredom fixes, family, food, news, how-to questions, or whatever is on your mind.",
   "ai.error": "I had trouble just now. Please try again, or tap Medical or Emergency.",
   "ai.friend": "friend",
   "ai.reminderLabel": "Reminder",
