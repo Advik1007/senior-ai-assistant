@@ -46,7 +46,7 @@ async function completeWithGemini(
     temperature?: number;
   },
 ): Promise<string | null> {
-  const model = process.env.AI_MODEL?.trim() || "gemini-2.0-flash";
+  const model = process.env.AI_MODEL?.trim() || "gemini-3.6-flash";
   const contents = input.messages
     .filter((m) => m.role !== "system")
     .map((m) => ({
