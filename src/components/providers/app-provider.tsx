@@ -50,6 +50,8 @@ type AppContextValue = {
   ready: boolean;
   authStatus: AuthStatus;
   sessionUser: SessionUser | null;
+  /** Call after password signup/login so OnboardingGate sees authenticated state. */
+  completeLogin: (user: SessionUser) => void;
   logout: () => Promise<void>;
 };
 
@@ -85,6 +87,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const setContacts = useCallback((next: Contact[]) => {
     saveContacts(next);
+  }, []);
+
+  const completeLogin = useCallback((user: SessionUser) => {
+    applySessionToClient(user);
+    setSessionUser(user);
+    setAuthStatus("authenticated");
   }, []);
 
   const logout = useCallback(async () => {
@@ -145,6 +153,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ready,
       authStatus,
       sessionUser,
+      completeLogin,
       logout,
     }),
     [
@@ -159,6 +168,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ready,
       authStatus,
       sessionUser,
+      completeLogin,
       logout,
     ],
   );

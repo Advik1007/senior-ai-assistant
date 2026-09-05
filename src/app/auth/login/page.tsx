@@ -17,7 +17,6 @@ import {
   authErrorMessage,
   type AuthUser,
 } from "@/lib/auth/client";
-import { applySessionToClient } from "@/lib/auth/client-session";
 import { clearLanguageChoice, nextPathAfterVerify } from "@/lib/storage/onboarding";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,7 +35,8 @@ function normalizeEmailInput(value: string): string {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { strings, lang, profile, setProfile, prefs, setPrefs } = useApp();
+  const { strings, lang, profile, setProfile, prefs, setPrefs, completeLogin } =
+    useApp();
   const [email, setEmail] = useState(profile.email);
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -78,7 +78,7 @@ export default function LoginPage() {
         return;
       }
 
-      applySessionToClient({
+      completeLogin({
         id: data.user.id,
         email: data.user.email,
         name: data.user.name,
@@ -87,7 +87,9 @@ export default function LoginPage() {
       const next = applyAuthToProfile(data.user, profile, prefs);
       setProfile(next.profile);
       setPrefs(next.prefs);
-      router.push(nextPathAfterVerify());
+      const dest = nextPathAfterVerify();
+      // Hard navigate so Android WebView reliably picks up the session cookie.
+      window.location.assign(dest);
     } catch {
       setError(strings.authErrorGeneric);
     } finally {
@@ -182,9 +184,15 @@ export default function LoginPage() {
             setPassword(e.target.value);
             setError("");
           }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") void signInWithPassword();
+          }}
           className={onboardingInputClass}
         />
       </div>
+
+      {info ? <OnboardingStatus tone="success">{info}</OnboardingStatus> : null}
+      {error ? <OnboardingStatus tone="error">{error}</OnboardingStatus> : null}
 
       <BigButton
         tone="primary"
@@ -207,9 +215,6 @@ export default function LoginPage() {
       <BigButton href="/auth/signup" tone="call">
         {strings.authSignupButton}
       </BigButton>
-
-      {info ? <OnboardingStatus tone="success">{info}</OnboardingStatus> : null}
-      {error ? <OnboardingStatus tone="error">{error}</OnboardingStatus> : null}
     </OnboardingShell>
   );
 }

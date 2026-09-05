@@ -17,7 +17,6 @@ import {
   authErrorMessage,
   type AuthUser,
 } from "@/lib/auth/client";
-import { applySessionToClient } from "@/lib/auth/client-session";
 import { clearLanguageChoice } from "@/lib/storage/onboarding";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,7 +35,8 @@ function normalizeEmailInput(value: string): string {
 
 export default function SignupPage() {
   const router = useRouter();
-  const { strings, lang, profile, setProfile, prefs, setPrefs } = useApp();
+  const { strings, lang, profile, setProfile, prefs, setPrefs, completeLogin } =
+    useApp();
   const [name, setName] = useState(profile.displayName);
   const [email, setEmail] = useState(profile.email);
   const [password, setPassword] = useState("");
@@ -94,7 +94,7 @@ export default function SignupPage() {
         return;
       }
 
-      applySessionToClient({
+      completeLogin({
         id: data.user.id,
         email: data.user.email,
         name: data.user.name,
@@ -103,7 +103,7 @@ export default function SignupPage() {
       const next = applyAuthToProfile(data.user, profile, prefs);
       setProfile(next.profile);
       setPrefs(next.prefs);
-      router.push("/setup/contacts");
+      window.location.assign("/setup/contacts");
     } catch {
       setError(strings.authErrorGeneric);
     } finally {

@@ -10,12 +10,11 @@ import {
 import { useApp } from "@/components/providers/app-provider";
 import { isAppLanguage } from "@/lib/languages";
 import { markEmailVerified, nextPathAfterVerify } from "@/lib/storage/onboarding";
-import { applySessionToClient } from "@/lib/auth/client-session";
 
 export default function VerifyClient() {
   const params = useSearchParams();
   const router = useRouter();
-  const { strings, lang } = useApp();
+  const { strings, lang, completeLogin } = useApp();
   const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
   const verifiedRef = useRef(false);
 
@@ -43,7 +42,7 @@ export default function VerifyClient() {
           return;
         }
         if (data.user && isAppLanguage(data.user.lang)) {
-          applySessionToClient({
+          completeLogin({
             id: data.user.id,
             email: data.user.email,
             name: data.user.name,
@@ -53,10 +52,13 @@ export default function VerifyClient() {
           markEmailVerified();
         }
         setStatus("ok");
-        window.setTimeout(() => router.replace(nextPathAfterVerify()), 1200);
+        window.setTimeout(
+          () => window.location.assign(nextPathAfterVerify()),
+          1200,
+        );
       })
       .catch(() => setStatus("error"));
-  }, [params, router]);
+  }, [params, router, completeLogin]);
 
   return (
     <OnboardingShell
