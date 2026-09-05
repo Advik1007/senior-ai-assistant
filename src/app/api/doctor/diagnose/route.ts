@@ -21,10 +21,13 @@ export async function POST(request: Request) {
       severity: Math.min(10, Math.max(1, Number(body.severity) || 5)),
       ageGroup: body.ageGroup ?? "65plus",
       selectedSymptoms: body.selectedSymptoms ?? [],
+      lang: body.lang && isAppLanguage(body.lang) ? body.lang : "en",
     };
 
-    const lang = body.lang && isAppLanguage(body.lang) ? body.lang : "en";
-    const result = await diagnoseSymptoms({ ...input, lang });
+    const result = await diagnoseSymptoms({
+      ...input,
+      lang: input.lang ?? "en",
+    });
 
     return NextResponse.json({ ok: true, result });
   } catch {

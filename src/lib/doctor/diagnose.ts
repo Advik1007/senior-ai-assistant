@@ -33,9 +33,11 @@ export async function diagnoseSymptoms(
   input: TriageInput & { lang: string },
 ): Promise<TriageResult & { source: "ai" | "engine" }> {
   const apiKey = process.env.AI_API_KEY;
-  const base = runClinicalTriage(input);
+  const base = runClinicalTriage({ ...input, lang: input.lang });
 
-  if (!apiKey) {
+  // Keep Hindi (and other non-English) on the localized rule engine so UI
+  // chrome and clinical text stay in the same language.
+  if (!apiKey || input.lang !== "en") {
     return { ...base, source: "engine" };
   }
 

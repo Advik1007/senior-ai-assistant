@@ -19,12 +19,12 @@ type NearbyDoctor = {
 };
 
 const SYMPTOM_CHIPS = [
-  "fever",
-  "headache",
-  "cough",
-  "chest pain",
-  "dizziness",
-  "stomach pain",
+  { id: "fever", labelKey: "doctorChipFever" as const },
+  { id: "headache", labelKey: "doctorChipHeadache" as const },
+  { id: "cough", labelKey: "doctorChipCough" as const },
+  { id: "chest pain", labelKey: "doctorChipChestPain" as const },
+  { id: "dizziness", labelKey: "doctorChipDizziness" as const },
+  { id: "stomach pain", labelKey: "doctorChipStomachPain" as const },
 ];
 
 export function DoctorPageContent() {
@@ -110,6 +110,15 @@ export function DoctorPageContent() {
     }
   }, [searchParams, findNearby]);
 
+  const urgencyLabel =
+    result?.urgency === "emergency"
+      ? strings.doctorUrgencyEmergency
+      : result?.urgency === "urgent"
+        ? strings.doctorUrgencyUrgent
+        : result?.urgency === "routine"
+          ? strings.doctorUrgencyRoutine
+          : strings.doctorUrgencySelfCare;
+
   const urgencyColor =
     result?.urgency === "emergency"
       ? "bg-[#b00020] text-white"
@@ -139,16 +148,16 @@ export function DoctorPageContent() {
         <div className="mt-3 flex flex-wrap gap-2">
           {SYMPTOM_CHIPS.map((chip) => (
             <button
-              key={chip}
+              key={chip.id}
               type="button"
-              onClick={() => toggleChip(chip)}
+              onClick={() => toggleChip(chip.id)}
               className={`rounded-full border-2 px-4 py-2 text-lg font-semibold ${
-                selected.includes(chip)
+                selected.includes(chip.id)
                   ? "border-[#0B4F8A] bg-[#0B4F8A] text-white"
                   : "border-[#0B1F3A]/30 bg-white"
               }`}
             >
-              {chip}
+              {strings[chip.labelKey]}
             </button>
           ))}
         </div>
@@ -171,7 +180,7 @@ export function DoctorPageContent() {
       {result ? (
         <section className="flex flex-col gap-4 rounded-3xl border-4 border-[#0B1F3A] bg-white p-4">
           <div className={`rounded-2xl p-4 text-xl font-bold ${urgencyColor}`}>
-            {strings.doctorUrgency}: {result.urgency.toUpperCase()}
+            {strings.doctorUrgency}: {urgencyLabel}
             <p className="mt-2 text-base font-semibold">{result.urgencyReason}</p>
           </div>
           <p className="text-lg">{result.clinicalSummary}</p>
