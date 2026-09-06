@@ -1,4 +1,5 @@
 import type { AppLanguage } from "@/lib/languages";
+import { isAppLanguage } from "@/lib/languages";
 import { markEmailVerified } from "@/lib/storage/onboarding";
 import type { AccessibilityPreferences, UserProfile } from "@/lib/db/schema";
 
@@ -9,20 +10,33 @@ export type AuthUser = {
   lang: AppLanguage;
 };
 
+/**
+ * Apply account name/email after login without clobbering the language
+ * the user already chose on this device.
+ */
 export function applyAuthToProfile(
   user: AuthUser,
   profile: UserProfile,
   prefs: AccessibilityPreferences,
 ): { profile: UserProfile; prefs: AccessibilityPreferences } {
   markEmailVerified();
+
+  const deviceLang = isAppLanguage(prefs.language)
+    ? prefs.language
+    : isAppLanguage(profile.preferredLanguage)
+      ? profile.preferredLanguage
+      : null;
+  // Device choice wins. Account lang is only a fallback for first-time setups.
+  const language: AppLanguage = deviceLang ?? user.lang;
+
   return {
     profile: {
       ...profile,
-      displayName: user.name,
+      displayName: user.name || profile.displayName,
       email: user.email,
-      preferredLanguage: user.lang,
+      preferredLanguage: language,
     },
-    prefs: { ...prefs, language: user.lang },
+    prefs: { ...prefs, language },
   };
 }
 

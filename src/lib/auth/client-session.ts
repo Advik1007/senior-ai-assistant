@@ -143,11 +143,13 @@ export function applySessionToClient(user: SessionUser): void {
   const profile = getProfileSnapshot();
   const onboarding = getOnboardingSnapshot();
 
-  // Never mark language chosen here — only the language screen may do that.
+  // Never override the language chosen on this device with the account default.
   if (onboarding.languageChosen) {
     const language: AppLanguage = isAppLanguage(prefs.language)
       ? prefs.language
-      : user.lang;
+      : isAppLanguage(user.lang)
+        ? user.lang
+        : "en";
     savePreferences({ ...prefs, language });
     saveProfile({
       ...profile,

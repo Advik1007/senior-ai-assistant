@@ -119,9 +119,10 @@ export default function SettingsPage() {
             <BigButton
               key={lang.code}
               tone={prefs.language === lang.code ? "primary" : "muted"}
-              onClick={() =>
-                setPrefs({ ...prefs, language: lang.code })
-              }
+              onClick={() => {
+                setPrefs({ ...prefs, language: lang.code });
+                setProfile({ ...profile, preferredLanguage: lang.code });
+              }}
             >
               {lang.nativeLabel}
             </BigButton>

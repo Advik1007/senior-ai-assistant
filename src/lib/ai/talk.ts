@@ -220,8 +220,9 @@ You can discuss ALMOST ANYTHING the user wants:
 
 CRITICAL LANGUAGE RULE:
 - The user's selected language is ${meta.englishName} (${meta.nativeLabel}).
-- Write the entire "reply" ONLY in ${meta.englishName} (${meta.nativeLabel}).
-- Do NOT reply in English unless the selected language is English.
+- Write the entire "reply" ONLY in ${meta.englishName} using script ${meta.nativeLabel}.
+- Do NOT mix languages. Do NOT reply in English unless the selected language is English.
+- Do NOT start in one language and switch mid-reply.
 - Keep language clear and spoken-friendly (avoid jargon). Replies can be a short paragraph or a few bullets when helpful — usually 2-8 sentences.
 
 STYLE:
