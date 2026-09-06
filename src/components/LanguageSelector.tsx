@@ -3,17 +3,18 @@
 import { OnboardingShell } from "@/components/OnboardingShell";
 import { useApp } from "@/components/providers/app-provider";
 import { LANGUAGES, type AppLanguage } from "@/lib/languages";
-import { markLanguageChosen } from "@/lib/storage/onboarding";
+import { getOnboardingSnapshot, markLanguageChosen } from "@/lib/storage/onboarding";
+import { persistOnboardingToNative } from "@/lib/storage/native-onboarding";
 
 export function LanguageSelector() {
   const { prefs, setPrefs, setProfile, profile, strings } = useApp();
 
-  function selectLanguage(code: AppLanguage) {
-    // Persist language choice BEFORE navigation so /auth never bounces back.
+  async function selectLanguage(code: AppLanguage) {
     setPrefs({ ...prefs, language: code });
     setProfile({ ...profile, preferredLanguage: code });
     markLanguageChosen();
-    // Hard navigation with replace so Back does not return to Language.
+    // Wait for native Preferences write before leaving Language (Android app).
+    await persistOnboardingToNative(getOnboardingSnapshot(), code);
     window.location.replace("/auth");
   }
 
@@ -34,7 +35,7 @@ export function LanguageSelector() {
               type="button"
               role="option"
               aria-selected={prefs.language === lang.code}
-              onClick={() => selectLanguage(lang.code)}
+              onClick={() => void selectLanguage(lang.code)}
               className="flex min-h-[4.5rem] w-full cursor-pointer items-center justify-between border-b border-[#0B1F3A]/10 px-2 py-4 text-left last:border-b-0 hover:bg-[#f7f9fb] hover:text-[#0B4F8A] focus-visible:bg-[#eef4fa] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#0B4F8A]/25"
             >
               <span className="text-2xl font-semibold text-[#0B1F3A] sm:text-3xl">

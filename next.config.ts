@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
   transpilePackages: [
     "@capacitor/core",
     "@capacitor/app",
+    "@capacitor/preferences",
     "@capacitor/splash-screen",
     "@capgo/capacitor-speech-recognition",
   ],

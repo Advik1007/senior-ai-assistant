@@ -22,6 +22,7 @@ import {
   subscribeAuthLogout,
   type SessionUser,
 } from "@/lib/auth/client-session";
+import { hydrateOnboardingFromNative } from "@/lib/storage/native-onboarding";
 import {
   DEFAULT_CONTACTS,
   getContactsSnapshot,
@@ -106,12 +107,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useLayoutEffect(() => {
-    const cached = readCachedSessionUser();
-    if (cached) {
-      applySessionToClient(cached);
-      setSessionUser(cached);
-      setAuthStatus("authenticated");
-    }
+    void (async () => {
+      // Android app: restore onboarding from native Preferences before auth gate runs.
+      await hydrateOnboardingFromNative();
+      const cached = readCachedSessionUser();
+      if (cached) {
+        applySessionToClient(cached);
+        setSessionUser(cached);
+        setAuthStatus("authenticated");
+      }
+    })();
   }, []);
 
   useEffect(() => {

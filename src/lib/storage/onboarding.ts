@@ -128,6 +128,10 @@ export function saveOnboarding(state: OnboardingState): void {
     setupStep: state.setupStep,
   });
   emitStore();
+  // Android app: mirror into native Preferences (async, non-blocking).
+  void import("@/lib/storage/native-onboarding")
+    .then(({ persistOnboardingToNative }) => persistOnboardingToNative(state))
+    .catch(() => undefined);
 }
 
 /** Only call from the language selection screen after the user taps a language. */
