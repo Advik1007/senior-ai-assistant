@@ -31,14 +31,14 @@ export async function POST(request: Request) {
     }
 
     const publicUser = toPublicUser(user);
-    await setSessionCookie({
+    const token = await setSessionCookie({
       userId: publicUser.id,
       email: publicUser.email,
       name: publicUser.name,
       lang: publicUser.lang,
     });
 
-    return NextResponse.json({ ok: true, user: publicUser });
+    return NextResponse.json({ ok: true, user: publicUser, token });
   } catch (error) {
     const text = error instanceof Error ? error.message : "";
     if (/ENOENT|readonly|EACCES|SQLITE|database/i.test(text)) {

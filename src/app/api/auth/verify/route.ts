@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     lang: payload.lang,
   });
 
-  await setSessionCookie({
+  const sessionToken = await setSessionCookie({
     userId: user.id,
     email: user.email,
     name: user.name,
@@ -31,5 +31,6 @@ export async function GET(request: Request) {
     email: user.email,
     lang: user.lang,
     user,
+    token: sessionToken,
   });
 }

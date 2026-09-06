@@ -87,6 +87,7 @@ export default function SignupPage() {
       const data = (await res.json().catch(() => ({}))) as {
         message?: string;
         user?: AuthUser;
+        token?: string;
       };
 
       if (!res.ok || !data.user) {
@@ -94,12 +95,15 @@ export default function SignupPage() {
         return;
       }
 
-      completeLogin({
-        id: data.user.id,
-        email: data.user.email,
-        name: data.user.name,
-        lang: data.user.lang,
-      });
+      completeLogin(
+        {
+          id: data.user.id,
+          email: data.user.email,
+          name: data.user.name,
+          lang: data.user.lang,
+        },
+        data.token,
+      );
       const next = applyAuthToProfile(data.user, profile, prefs);
       setProfile(next.profile);
       setPrefs(next.prefs);

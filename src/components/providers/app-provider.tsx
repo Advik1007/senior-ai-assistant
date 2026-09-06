@@ -13,9 +13,11 @@ import {
 import type { AccessibilityPreferences, Contact, UserProfile } from "@/lib/db/schema";
 import {
   applySessionToClient,
+  cacheSessionToken,
   clearSessionOnClient,
-  fetchSessionUser,
+  fetchSessionUserResilient,
   logoutSession,
+  readCachedSessionUser,
   subscribeAuthLogout,
   type SessionUser,
 } from "@/lib/auth/client-session";
@@ -51,7 +53,7 @@ type AppContextValue = {
   authStatus: AuthStatus;
   sessionUser: SessionUser | null;
   /** Call after password signup/login so OnboardingGate sees authenticated state. */
-  completeLogin: (user: SessionUser) => void;
+  completeLogin: (user: SessionUser, token?: string) => void;
   logout: () => Promise<void>;
 };
 
@@ -89,7 +91,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     saveContacts(next);
   }, []);
 
-  const completeLogin = useCallback((user: SessionUser) => {
+  const completeLogin = useCallback((user: SessionUser, token?: string) => {
+    if (token) cacheSessionToken(token);
     applySessionToClient(user);
     setSessionUser(user);
     setAuthStatus("authenticated");
@@ -105,19 +108,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
 
+    // Instant restore — stops the "keep showing Sign in" flash on Android.
+    const cached = readCachedSessionUser();
+    if (cached) {
+      setSessionUser(cached);
+      setAuthStatus("authenticated");
+    }
+
     void (async () => {
-      const user = await fetchSessionUser();
+      const { user, unauthorized } = await fetchSessionUserResilient();
       if (cancelled) return;
 
       if (user) {
         applySessionToClient(user);
         setSessionUser(user);
         setAuthStatus("authenticated");
-      } else {
+        return;
+      }
+
+      if (unauthorized) {
         clearSessionOnClient();
         setSessionUser(null);
         setAuthStatus("anonymous");
+        return;
       }
+
+      // Network blip: keep cached login if we have one.
+      if (cached) {
+        setSessionUser(cached);
+        setAuthStatus("authenticated");
+        return;
+      }
+
+      clearSessionOnClient();
+      setSessionUser(null);
+      setAuthStatus("anonymous");
     })();
 
     return () => {

@@ -7,6 +7,7 @@ import { isAppLanguage } from "@/lib/languages";
 
 export const SESSION_COOKIE = "unk_session";
 const SESSION_TTL = "30d";
+const SESSION_MAX_AGE = 60 * 60 * 24 * 30;
 
 export type SessionPayload = {
   userId: string;
@@ -45,9 +46,12 @@ export async function verifySessionToken(
     const { payload } = await jwtVerify(token, secretKey());
     const lang = payload.lang;
     if (typeof lang !== "string" || !isAppLanguage(lang)) return null;
+    const userId = String(payload.userId ?? "");
+    const email = String(payload.email ?? "");
+    if (!userId || !email) return null;
     return {
-      userId: String(payload.userId ?? ""),
-      email: String(payload.email ?? ""),
+      userId,
+      email,
       name: String(payload.name ?? ""),
       lang,
     };
@@ -56,16 +60,27 @@ export async function verifySessionToken(
   }
 }
 
-export async function setSessionCookie(payload: SessionPayload): Promise<void> {
+function cookieSecure(): boolean {
+  // Always secure on HTTPS hosts (Vercel / Capacitor remote URL).
+  return (
+    process.env.NODE_ENV === "production" ||
+    Boolean(process.env.VERCEL) ||
+    Boolean(process.env.APP_URL?.startsWith("https://"))
+  );
+}
+
+export async function setSessionCookie(payload: SessionPayload): Promise<string> {
   const token = await createSessionToken(payload);
   const jar = await cookies();
   jar.set(SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: cookieSecure(),
+    // Lax works for same-site WebView navigations to the Vercel host.
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 24 * 30,
+    maxAge: SESSION_MAX_AGE,
   });
+  return token;
 }
 
 export async function clearSessionCookie(): Promise<void> {
@@ -78,4 +93,17 @@ export async function getSession(): Promise<SessionPayload | null> {
   const token = jar.get(SESSION_COOKIE)?.value;
   if (!token) return null;
   return verifySessionToken(token);
+}
+
+/** Cookie first, then Authorization: Bearer (Android WebView fallback). */
+export async function getSessionFromRequest(
+  request?: Request,
+): Promise<SessionPayload | null> {
+  const fromCookie = await getSession();
+  if (fromCookie) return fromCookie;
+
+  const header = request?.headers.get("authorization") ?? "";
+  const match = /^Bearer\s+(.+)$/i.exec(header.trim());
+  if (!match?.[1]) return null;
+  return verifySessionToken(match[1].trim());
 }

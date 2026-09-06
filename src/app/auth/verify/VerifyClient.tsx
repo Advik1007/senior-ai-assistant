@@ -35,6 +35,7 @@ export default function VerifyClient() {
         ok?: boolean;
         email?: string;
         lang?: string;
+        token?: string;
         user?: { id: string; email: string; name: string; lang: string };
       }) => {
         if (!data.ok || !data.email) {
@@ -42,12 +43,15 @@ export default function VerifyClient() {
           return;
         }
         if (data.user && isAppLanguage(data.user.lang)) {
-          completeLogin({
-            id: data.user.id,
-            email: data.user.email,
-            name: data.user.name,
-            lang: data.user.lang,
-          });
+          completeLogin(
+            {
+              id: data.user.id,
+              email: data.user.email,
+              name: data.user.name,
+              lang: data.user.lang,
+            },
+            data.token,
+          );
         } else {
           markEmailVerified();
         }

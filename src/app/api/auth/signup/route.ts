@@ -60,7 +60,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "db_unavailable" }, { status: 503 });
     }
 
-    await setSessionCookie({
+    const token = await setSessionCookie({
       userId: user.id,
       email: user.email,
       name: user.name,
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
       // Account is created even if welcome email is not configured.
     }
 
-    return NextResponse.json({ ok: true, user });
+    return NextResponse.json({ ok: true, user, token });
   } catch {
     return NextResponse.json({ message: "signup_failed" }, { status: 500 });
   }

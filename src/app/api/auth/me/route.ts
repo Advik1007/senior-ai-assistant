@@ -1,20 +1,24 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth/session";
-import { findUserByEmail, toPublicUser } from "@/lib/db/users";
+import { getSessionFromRequest } from "@/lib/auth/session";
 
-export async function GET() {
-  const session = await getSession();
+/**
+ * Fast session check from JWT (cookie or Bearer).
+ * Avoids a Turso round-trip on every app open so the gate does not lag
+ * and bounce people back to Sign in.
+ */
+export async function GET(request: Request) {
+  const session = await getSessionFromRequest(request);
   if (!session?.userId || !session.email) {
-    return NextResponse.json({ ok: false }, { status: 401 });
-  }
-
-  const user = await findUserByEmail(session.email);
-  if (!user || user.id !== session.userId) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 
   return NextResponse.json({
     ok: true,
-    user: toPublicUser(user),
+    user: {
+      id: session.userId,
+      email: session.email,
+      name: session.name,
+      lang: session.lang,
+    },
   });
 }

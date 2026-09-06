@@ -44,6 +44,7 @@ android/build/
 android/local.properties
 android/.idea/
 *.apk
+!public/downloads/unk-ai.apk
 *.aab
 
 /data/

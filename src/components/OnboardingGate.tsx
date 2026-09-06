@@ -52,6 +52,12 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const state = getOnboardingSnapshot();
 
+    // Public install page — no language / auth gate
+    if (pathname === "/install" || pathname.startsWith("/install/")) {
+      setAllowed(true);
+      return;
+    }
+
     if (pathname === "/language") {
       router.replace(LANGUAGE_PATH);
       return;
@@ -71,7 +77,7 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Fully done → home only
+    // Fully done → stay in the app (do not bounce back to Sign in)
     if (isOnboardingFinished(state)) {
       if (
         pathname === LANGUAGE_PATH ||
@@ -88,6 +94,7 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
     }
 
     // ── Step 2: Sign in or Create account ──
+    // Only force login after session check finished (ready).
     if (authStatus !== "authenticated") {
       const onAuth = isAuthPath(pathname);
       setAllowed(onAuth);
@@ -128,6 +135,11 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
   const languagePending =
     typeof window !== "undefined" &&
     !getOnboardingSnapshot().languageChosen;
+
+  // Install page is public and should never wait on auth bootstrap
+  if (pathname === "/install" || pathname.startsWith("/install/")) {
+    return <>{children}</>;
+  }
 
   // Language screen never waits on auth bootstrap
   if (languagePending && pathname === LANGUAGE_PATH && allowed) {
