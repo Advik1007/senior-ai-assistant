@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useApp } from "@/components/providers/app-provider";
 import {
@@ -36,117 +36,130 @@ function setupStepFromPath(path: string): SetupStep | null {
   return SETUP_STEPS.includes(step) ? step : null;
 }
 
+function isInstallPath(path: string): boolean {
+  return path === "/install" || path.startsWith("/install/");
+}
+
+type GateDecision = {
+  allowed: boolean;
+  redirect: string | null;
+  /** Waiting on first session check — only then show full-screen Loading. */
+  waiting: boolean;
+};
+
+function decide(
+  pathname: string,
+  ready: boolean,
+  authStatus: "loading" | "authenticated" | "anonymous",
+): GateDecision {
+  if (isInstallPath(pathname)) {
+    return { allowed: true, redirect: null, waiting: false };
+  }
+
+  if (pathname === "/language") {
+    return { allowed: false, redirect: LANGUAGE_PATH, waiting: false };
+  }
+
+  const state = getOnboardingSnapshot();
+
+  // Step 1: language
+  if (!state.languageChosen) {
+    const onLanguage = pathname === LANGUAGE_PATH;
+    return {
+      allowed: onLanguage,
+      redirect: onLanguage ? null : LANGUAGE_PATH,
+      waiting: false,
+    };
+  }
+
+  // Keep showing the current screen while session restores — never flash Loading on scroll/nav.
+  if (!ready) {
+    return { allowed: true, redirect: null, waiting: false };
+  }
+
+  // Fully done → app screens only
+  if (isOnboardingFinished(state)) {
+    if (
+      pathname === LANGUAGE_PATH ||
+      isAuthPath(pathname) ||
+      isSetupPath(pathname) ||
+      pathname === "/auth/setup-calls"
+    ) {
+      return { allowed: false, redirect: "/home", waiting: false };
+    }
+    return { allowed: true, redirect: null, waiting: false };
+  }
+
+  // Step 2: auth
+  if (authStatus !== "authenticated") {
+    const onAuth = isAuthPath(pathname);
+    return {
+      allowed: onAuth,
+      redirect: onAuth ? null : "/auth",
+      waiting: false,
+    };
+  }
+
+  // Step 3: setup wizard
+  if (pathname === "/auth/setup-calls") {
+    return { allowed: false, redirect: "/setup/contacts", waiting: false };
+  }
+
+  const expectedStep = state.setupStep || "contacts";
+  const expected = setupPathForStep(expectedStep);
+  const pathStep = setupStepFromPath(pathname);
+
+  if (!isSetupPath(pathname)) {
+    return { allowed: false, redirect: expected, waiting: false };
+  }
+
+  if (pathStep) {
+    const pathIndex = SETUP_STEPS.indexOf(pathStep);
+    const expectedIndex = SETUP_STEPS.indexOf(expectedStep);
+    if (pathIndex > expectedIndex) {
+      return { allowed: false, redirect: expected, waiting: false };
+    }
+  }
+
+  return { allowed: true, redirect: null, waiting: false };
+}
+
 /**
  * HARD ORDER — never skip a step:
  * 1. Language (/)
- * 2. Sign in or Create account (/auth, /auth/login, /auth/signup)
- * 3. Setup wizard (/setup/contacts → routine → medicines → complete + confetti)
- * 4. Home (/home)
+ * 2. Sign in or Create account
+ * 3. Setup wizard
+ * 4. Home
+ *
+ * Once the user has entered the app, we keep the UI mounted so scroll/nav
+ * never flashes the full-screen “Loading…” screen.
  */
 export function OnboardingGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { ready, authStatus, strings } = useApp();
-  const [allowed, setAllowed] = useState(false);
+  const [entered, setEntered] = useState(false);
+
+  const decision = useMemo(
+    () => decide(pathname, ready, authStatus),
+    [pathname, ready, authStatus],
+  );
+
+  useLayoutEffect(() => {
+    if (decision.allowed) setEntered(true);
+  }, [decision.allowed]);
 
   useEffect(() => {
-    const state = getOnboardingSnapshot();
+    if (decision.redirect) router.replace(decision.redirect);
+  }, [decision.redirect, router]);
 
-    // Public install page — no language / auth gate
-    if (pathname === "/install" || pathname.startsWith("/install/")) {
-      setAllowed(true);
-      return;
-    }
-
-    if (pathname === "/language") {
-      router.replace(LANGUAGE_PATH);
-      return;
-    }
-
-    // ── Step 1: Language ALWAYS first ──
-    if (!state.languageChosen) {
-      const onLanguage = pathname === LANGUAGE_PATH;
-      setAllowed(onLanguage);
-      if (!onLanguage) router.replace(LANGUAGE_PATH);
-      return;
-    }
-
-    // Steps 2–4 need server session status
-    if (!ready) {
-      setAllowed(false);
-      return;
-    }
-
-    // Fully done → stay in the app (do not bounce back to Sign in)
-    if (isOnboardingFinished(state)) {
-      if (
-        pathname === LANGUAGE_PATH ||
-        isAuthPath(pathname) ||
-        isSetupPath(pathname) ||
-        pathname === "/auth/setup-calls"
-      ) {
-        setAllowed(false);
-        router.replace("/home");
-        return;
-      }
-      setAllowed(true);
-      return;
-    }
-
-    // ── Step 2: Sign in or Create account ──
-    // Only force login after session check finished (ready).
-    if (authStatus !== "authenticated") {
-      const onAuth = isAuthPath(pathname);
-      setAllowed(onAuth);
-      if (!onAuth) router.replace("/auth");
-      return;
-    }
-
-    // ── Step 3: Setup wizard ──
-    if (pathname === "/auth/setup-calls") {
-      setAllowed(false);
-      router.replace("/setup/contacts");
-      return;
-    }
-
-    const expectedStep = state.setupStep || "contacts";
-    const expected = setupPathForStep(expectedStep);
-    const pathStep = setupStepFromPath(pathname);
-
-    if (!isSetupPath(pathname)) {
-      setAllowed(false);
-      router.replace(expected);
-      return;
-    }
-
-    if (pathStep) {
-      const pathIndex = SETUP_STEPS.indexOf(pathStep);
-      const expectedIndex = SETUP_STEPS.indexOf(expectedStep);
-      if (pathIndex > expectedIndex) {
-        setAllowed(false);
-        router.replace(expected);
-        return;
-      }
-    }
-
-    setAllowed(true);
-  }, [pathname, router, ready, authStatus]);
-
-  const languagePending =
-    typeof window !== "undefined" &&
-    !getOnboardingSnapshot().languageChosen;
-
-  // Install page is public and should never wait on auth bootstrap
-  if (pathname === "/install" || pathname.startsWith("/install/")) {
+  // Public install — never gated
+  if (isInstallPath(pathname)) {
     return <>{children}</>;
   }
 
-  // Language screen never waits on auth bootstrap
-  if (languagePending && pathname === LANGUAGE_PATH && allowed) {
-    return <>{children}</>;
-  }
-
-  if (!ready || !allowed) {
+  // Cold start only: no screen yet and decision blocks content
+  if (!decision.allowed && !entered) {
     return (
       <div className="flex min-h-dvh items-center justify-center px-4 text-center text-xl font-semibold text-[#0B1F3A]">
         {strings.loading}
@@ -154,5 +167,6 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // Redirect in progress after user already saw the app — keep UI (smooth).
   return <>{children}</>;
 }

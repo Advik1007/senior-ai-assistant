@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
   useSyncExternalStore,
@@ -105,15 +106,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     window.location.href = "/auth/login";
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    // Instant restore — stops the "keep showing Sign in" flash on Android.
+  useLayoutEffect(() => {
+    // Restore before paint so OnboardingGate does not flash Loading…
     const cached = readCachedSessionUser();
     if (cached) {
       setSessionUser(cached);
       setAuthStatus("authenticated");
     }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const cached = readCachedSessionUser();
 
     void (async () => {
       const { user, unauthorized } = await fetchSessionUserResilient();
