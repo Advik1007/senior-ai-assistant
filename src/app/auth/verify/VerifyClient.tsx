@@ -49,6 +49,9 @@ export default function VerifyClient() {
               email: data.user.email,
               name: data.user.name,
               lang: data.user.lang,
+              setupCompleted: Boolean(
+                (data.user as { setupCompleted?: boolean }).setupCompleted,
+              ),
             },
             data.token,
           );

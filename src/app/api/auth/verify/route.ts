@@ -24,6 +24,7 @@ export async function GET(request: Request) {
     email: user.email,
     name: user.name,
     lang: user.lang,
+    setupCompleted: user.setupCompleted,
   });
 
   return NextResponse.json({

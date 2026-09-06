@@ -29,8 +29,18 @@ const EMPTY_HISTORY: import("@/lib/db/schema").BookingRecord[] = [];
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { prefs, setPrefs, profile, setProfile, contacts, setContacts, strings, logout } =
-    useApp();
+  const {
+    prefs,
+    setPrefs,
+    profile,
+    setProfile,
+    contacts,
+    setContacts,
+    strings,
+    logout,
+    sessionUser,
+    completeLogin,
+  } = useApp();
   const history = useSyncExternalStore(
     subscribeStore,
     getBookingHistorySnapshot,
@@ -122,6 +132,15 @@ export default function SettingsPage() {
               onClick={() => {
                 setPrefs({ ...prefs, language: lang.code });
                 setProfile({ ...profile, preferredLanguage: lang.code });
+                if (sessionUser) {
+                  void import("@/lib/auth/client-session").then(
+                    ({ persistAccountLanguage }) => {
+                      void persistAccountLanguage(lang.code).then((user) => {
+                        if (user) completeLogin(user);
+                      });
+                    },
+                  );
+                }
               }}
             >
               {lang.nativeLabel}

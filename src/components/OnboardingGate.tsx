@@ -3,163 +3,67 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useApp } from "@/components/providers/app-provider";
-import {
-  getOnboardingSnapshot,
-  isOnboardingFinished,
-  setupPathForStep,
-  type SetupStep,
-} from "@/lib/storage/onboarding";
-
-const AUTH_PREFIXES = [
-  "/auth/login",
-  "/auth/signup",
-  "/auth/check-email",
-  "/auth/verify",
-  "/auth/device/",
-];
-
-const SETUP_STEPS: SetupStep[] = ["contacts", "routine", "medicines", "complete"];
-
-const LANGUAGE_PATH = "/";
-
-function isAuthPath(path: string): boolean {
-  if (path === "/auth" || path === "/auth/") return true;
-  return AUTH_PREFIXES.some((p) => path === p || path.startsWith(p));
-}
-
-function isSetupPath(path: string): boolean {
-  return path.startsWith("/setup/");
-}
-
-function setupStepFromPath(path: string): SetupStep | null {
-  const step = path.replace("/setup/", "") as SetupStep;
-  return SETUP_STEPS.includes(step) ? step : null;
-}
-
-function isInstallPath(path: string): boolean {
-  return path === "/install" || path.startsWith("/install/");
-}
-
-type GateDecision = {
-  allowed: boolean;
-  redirect: string | null;
-  /** Waiting on first session check — only then show full-screen Loading. */
-  waiting: boolean;
-};
-
-function decide(
-  pathname: string,
-  ready: boolean,
-  authStatus: "loading" | "authenticated" | "anonymous",
-): GateDecision {
-  if (isInstallPath(pathname)) {
-    return { allowed: true, redirect: null, waiting: false };
-  }
-
-  if (pathname === "/language") {
-    return { allowed: false, redirect: LANGUAGE_PATH, waiting: false };
-  }
-
-  const state = getOnboardingSnapshot();
-
-  // Step 1: language
-  if (!state.languageChosen) {
-    const onLanguage = pathname === LANGUAGE_PATH;
-    return {
-      allowed: onLanguage,
-      redirect: onLanguage ? null : LANGUAGE_PATH,
-      waiting: false,
-    };
-  }
-
-  // Keep showing the current screen while session restores — never flash Loading on scroll/nav.
-  if (!ready) {
-    return { allowed: true, redirect: null, waiting: false };
-  }
-
-  // Fully done → app screens only
-  if (isOnboardingFinished(state)) {
-    if (
-      pathname === LANGUAGE_PATH ||
-      isAuthPath(pathname) ||
-      isSetupPath(pathname) ||
-      pathname === "/auth/setup-calls"
-    ) {
-      return { allowed: false, redirect: "/home", waiting: false };
-    }
-    return { allowed: true, redirect: null, waiting: false };
-  }
-
-  // Step 2: auth
-  if (authStatus !== "authenticated") {
-    const onAuth = isAuthPath(pathname);
-    return {
-      allowed: onAuth,
-      redirect: onAuth ? null : "/auth",
-      waiting: false,
-    };
-  }
-
-  // Step 3: setup wizard
-  if (pathname === "/auth/setup-calls") {
-    return { allowed: false, redirect: "/setup/contacts", waiting: false };
-  }
-
-  const expectedStep = state.setupStep || "contacts";
-  const expected = setupPathForStep(expectedStep);
-  const pathStep = setupStepFromPath(pathname);
-
-  if (!isSetupPath(pathname)) {
-    return { allowed: false, redirect: expected, waiting: false };
-  }
-
-  if (pathStep) {
-    const pathIndex = SETUP_STEPS.indexOf(pathStep);
-    const expectedIndex = SETUP_STEPS.indexOf(expectedStep);
-    if (pathIndex > expectedIndex) {
-      return { allowed: false, redirect: expected, waiting: false };
-    }
-  }
-
-  return { allowed: true, redirect: null, waiting: false };
-}
+import { BigButton } from "@/components/BigButton";
+import { resolveAppRoute } from "@/lib/onboarding/decide-route";
+import { getOnboardingSnapshot } from "@/lib/storage/onboarding";
+import { subscribeStore } from "@/lib/storage/store-events";
 
 /**
- * HARD ORDER — never skip a step:
- * 1. Language (/)
- * 2. Sign in or Create account
- * 3. Setup wizard
- * 4. Home
- *
- * Once the user has entered the app, we keep the UI mounted so scroll/nav
- * never flashes the full-screen “Loading…” screen.
+ * ONE authoritative redirect strategy for Language → Auth → Setup → Home.
+ * No other screen should independently invent onboarding redirects.
  */
 export function OnboardingGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { ready, authStatus, strings } = useApp();
+  const { authStatus, sessionUser, strings } = useApp();
   const [entered, setEntered] = useState(false);
+  const [onboardingTick, setOnboardingTick] = useState(0);
 
-  const decision = useMemo(
-    () => decide(pathname, ready, authStatus),
-    [pathname, ready, authStatus],
-  );
+  useEffect(() => {
+    return subscribeStore(() => setOnboardingTick((n) => n + 1));
+  }, []);
+
+  const decision = useMemo(() => {
+    const state = getOnboardingSnapshot();
+    return resolveAppRoute({
+      pathname,
+      authStatus,
+      languageChosen: state.languageChosen,
+      setupWizardComplete: state.setupWizardComplete,
+      sessionSetupCompleted: Boolean(sessionUser?.setupCompleted),
+      setupStep: state.setupStep || "contacts",
+    });
+    // onboardingTick forces recompute after local onboarding writes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, authStatus, sessionUser, onboardingTick]);
 
   useLayoutEffect(() => {
-    if (decision.allowed) setEntered(true);
-  }, [decision.allowed]);
+    if (decision.allow) setEntered(true);
+  }, [decision.allow]);
 
   useEffect(() => {
     if (decision.redirect) router.replace(decision.redirect);
   }, [decision.redirect, router]);
 
-  // Public install — never gated
-  if (isInstallPath(pathname)) {
+  if (pathname === "/install" || pathname.startsWith("/install/")) {
     return <>{children}</>;
   }
 
-  // Cold start only: no screen yet and decision blocks content
-  if (!decision.allowed && !entered) {
+  if (decision.sessionError) {
+    return (
+      <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col justify-center gap-4 px-4 text-center">
+        <p className="text-2xl font-bold text-[#0B1F3A]">
+          {strings.authErrorGeneric}
+        </p>
+        <p className="text-lg text-[#0B1F3A]/80">{strings.loading}</p>
+        <BigButton tone="primary" onClick={() => window.location.reload()}>
+          OK
+        </BigButton>
+      </div>
+    );
+  }
+
+  if (!decision.allow && !entered) {
     return (
       <div className="flex min-h-dvh items-center justify-center px-4 text-center text-xl font-semibold text-[#0B1F3A]">
         {strings.loading}
@@ -167,6 +71,5 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Redirect in progress after user already saw the app — keep UI (smooth).
   return <>{children}</>;
 }

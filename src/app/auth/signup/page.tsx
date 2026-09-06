@@ -101,6 +101,7 @@ export default function SignupPage() {
           email: data.user.email,
           name: data.user.name,
           lang: data.user.lang,
+          setupCompleted: Boolean(data.user.setupCompleted),
         },
         data.token,
       );

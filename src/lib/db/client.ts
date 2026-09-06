@@ -21,17 +21,14 @@ function resolveDbConfig(): { url: string; authToken?: string } {
     cleanEnv(process.env.DATABASE_URL);
   const authToken = cleanEnv(process.env.TURSO_AUTH_TOKEN) || undefined;
 
-  // Remote Turso / libSQL (required for reliable Vercel production).
   if (tursoUrl.startsWith("libsql://") || tursoUrl.startsWith("https://")) {
     return { url: tursoUrl, authToken };
   }
 
-  // Explicit file URL from env.
   if (tursoUrl.startsWith("file:")) {
     return { url: tursoUrl };
   }
 
-  // Local SQLite. On Vercel the app directory is read-only, so use /tmp.
   const dataDir = process.env.VERCEL
     ? path.join("/tmp", "unk-data")
     : path.join(process.cwd(), "data");
@@ -50,6 +47,23 @@ export function getDb(): Client {
   return client;
 }
 
+async function ensureColumn(
+  db: Client,
+  table: string,
+  column: string,
+  definition: string,
+): Promise<void> {
+  try {
+    await db.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    // Column already exists — ignore.
+    if (!/duplicate column|already exists/i.test(message)) {
+      throw error;
+    }
+  }
+}
+
 export async function ensureSchema(): Promise<void> {
   if (!schemaReady) {
     schemaReady = (async () => {
@@ -61,9 +75,16 @@ export async function ensureSchema(): Promise<void> {
           name TEXT NOT NULL,
           password_hash TEXT NOT NULL,
           lang TEXT NOT NULL DEFAULT 'en',
+          setup_completed INTEGER NOT NULL DEFAULT 0,
           created_at TEXT NOT NULL
         )
       `);
+      await ensureColumn(
+        db,
+        "users",
+        "setup_completed",
+        "INTEGER NOT NULL DEFAULT 0",
+      );
     })();
   }
   await schemaReady;

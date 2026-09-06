@@ -38,8 +38,7 @@ import {
 import { subscribeStore } from "@/lib/storage/store-events";
 import { t } from "@/lib/i18n";
 import type { AppLanguage } from "@/lib/languages";
-
-export type AuthStatus = "loading" | "authenticated" | "anonymous";
+import type { AuthStatus } from "@/lib/onboarding/decide-route";
 
 type AppContextValue = {
   prefs: AccessibilityPreferences;
@@ -53,7 +52,6 @@ type AppContextValue = {
   ready: boolean;
   authStatus: AuthStatus;
   sessionUser: SessionUser | null;
-  /** Call after password signup/login so OnboardingGate sees authenticated state. */
   completeLogin: (user: SessionUser, token?: string) => void;
   logout: () => Promise<void>;
 };
@@ -103,13 +101,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await logoutSession();
     setSessionUser(null);
     setAuthStatus("anonymous");
+    // Keep language preference — go to Login, not Language Selection.
     window.location.href = "/auth/login";
   }, []);
 
   useLayoutEffect(() => {
-    // Restore before paint so OnboardingGate does not flash Loading…
     const cached = readCachedSessionUser();
     if (cached) {
+      applySessionToClient(cached);
       setSessionUser(cached);
       setAuthStatus("authenticated");
     }
@@ -117,11 +116,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-
     const cached = readCachedSessionUser();
 
     void (async () => {
-      const { user, unauthorized } = await fetchSessionUserResilient();
+      const { user, unauthorized, error } = await fetchSessionUserResilient();
       if (cancelled) return;
 
       if (user) {
@@ -138,10 +136,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Network blip: keep cached login if we have one.
       if (cached) {
+        applySessionToClient(cached);
         setSessionUser(cached);
         setAuthStatus("authenticated");
+        return;
+      }
+
+      if (error) {
+        setSessionUser(null);
+        setAuthStatus("error");
         return;
       }
 

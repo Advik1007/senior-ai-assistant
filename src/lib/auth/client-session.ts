@@ -5,6 +5,8 @@ import {
   clearAuthenticatedOnboarding,
   getOnboardingSnapshot,
   markEmailVerified,
+  markLanguageChosen,
+  markSetupComplete,
 } from "@/lib/storage/onboarding";
 import {
   getPreferencesSnapshot,
@@ -22,6 +24,7 @@ export type SessionUser = {
   email: string;
   name: string;
   lang: AppLanguage;
+  setupCompleted: boolean;
 };
 
 function canUseStorage(): boolean {
@@ -48,6 +51,7 @@ export function readCachedSessionUser(): SessionUser | null {
       email: parsed.email,
       name: parsed.name,
       lang: parsed.lang,
+      setupCompleted: Boolean(parsed.setupCompleted),
     };
   } catch {
     return null;
@@ -95,6 +99,21 @@ export type SessionFetchResult =
   | { status: "unauthorized" }
   | { status: "error" };
 
+function parseUser(data: {
+  user?: Partial<SessionUser> & { setupCompleted?: boolean };
+}): SessionUser | null {
+  const u = data.user;
+  if (!u?.id || !u.email || typeof u.name !== "string") return null;
+  if (typeof u.lang !== "string" || !isAppLanguage(u.lang)) return null;
+  return {
+    id: u.id,
+    email: u.email,
+    name: u.name,
+    lang: u.lang,
+    setupCompleted: Boolean(u.setupCompleted),
+  };
+}
+
 export async function fetchSessionResult(): Promise<SessionFetchResult> {
   try {
     const res = await fetch("/api/auth/me", {
@@ -104,68 +123,75 @@ export async function fetchSessionResult(): Promise<SessionFetchResult> {
     });
     if (res.status === 401) return { status: "unauthorized" };
     if (!res.ok) return { status: "error" };
-    const data = (await res.json()) as { ok?: boolean; user?: SessionUser };
-    if (data.ok && data.user) return { status: "ok", user: data.user };
-    return { status: "unauthorized" };
+    const data = (await res.json()) as {
+      ok?: boolean;
+      user?: Partial<SessionUser>;
+    };
+    const user = data.ok ? parseUser(data) : null;
+    if (!user) return { status: "unauthorized" };
+    return { status: "ok", user };
   } catch {
     return { status: "error" };
   }
 }
 
-export async function fetchSessionUser(): Promise<SessionUser | null> {
-  const result = await fetchSessionResult();
-  return result.status === "ok" ? result.user : null;
-}
-
-/** Retries briefly — Turso / network blips should not force login. */
+/** Retries briefly — Turso / network blips should not force login or language. */
 export async function fetchSessionUserResilient(): Promise<{
   user: SessionUser | null;
   unauthorized: boolean;
+  error: boolean;
 }> {
   let sawUnauthorized = false;
+  let sawError = false;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const result = await fetchSessionResult();
     if (result.status === "ok") {
-      return { user: result.user, unauthorized: false };
+      return { user: result.user, unauthorized: false, error: false };
     }
     if (result.status === "unauthorized") {
       sawUnauthorized = true;
       break;
     }
+    sawError = true;
     await new Promise((r) => setTimeout(r, 350 * (attempt + 1)));
   }
-  return { user: null, unauthorized: sawUnauthorized };
+  return {
+    user: null,
+    unauthorized: sawUnauthorized,
+    error: sawError && !sawUnauthorized,
+  };
 }
 
+/**
+ * Hydrate local onboarding from the authenticated account.
+ * Server setup_completed / lang win when local storage was cleared.
+ */
 export function applySessionToClient(user: SessionUser): void {
   cacheSessionUser(user);
   const prefs = getPreferencesSnapshot();
   const profile = getProfileSnapshot();
   const onboarding = getOnboardingSnapshot();
 
-  // Never override the language chosen on this device with the account default.
-  if (onboarding.languageChosen) {
-    const language: AppLanguage = isAppLanguage(prefs.language)
+  const language: AppLanguage =
+    onboarding.languageChosen && isAppLanguage(prefs.language)
       ? prefs.language
-      : isAppLanguage(user.lang)
-        ? user.lang
-        : "en";
-    savePreferences({ ...prefs, language });
-    saveProfile({
-      ...profile,
-      displayName: user.name || profile.displayName,
-      email: user.email,
-      preferredLanguage: language,
-    });
-  } else {
-    saveProfile({
-      ...profile,
-      displayName: user.name || profile.displayName,
-      email: user.email,
-    });
-  }
+      : user.lang;
 
+  savePreferences({ ...prefs, language });
+  saveProfile({
+    ...profile,
+    displayName: user.name || profile.displayName,
+    email: user.email,
+    preferredLanguage: language,
+  });
+
+  // Authenticated account always has a language — never bounce to Language.
+  markLanguageChosen();
   markEmailVerified();
+
+  if (user.setupCompleted) {
+    markSetupComplete();
+  }
 }
 
 export function clearSessionOnClient(): void {
@@ -183,6 +209,58 @@ export async function logoutSession(): Promise<void> {
   clearSessionOnClient();
   if (typeof window !== "undefined") {
     localStorage.setItem(AUTH_LOGOUT_EVENT_KEY, String(Date.now()));
+  }
+}
+
+export async function persistSetupComplete(): Promise<SessionUser | null> {
+  try {
+    const res = await fetch("/api/auth/complete-setup", {
+      method: "POST",
+      credentials: "include",
+      headers: authHeaders(),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      user?: Partial<SessionUser>;
+      token?: string;
+    };
+    const user = parseUser(data);
+    if (user) {
+      if (data.token) cacheSessionToken(data.token);
+      applySessionToClient(user);
+    }
+    return user;
+  } catch {
+    return null;
+  }
+}
+
+export async function persistAccountLanguage(
+  lang: AppLanguage,
+): Promise<SessionUser | null> {
+  try {
+    const res = await fetch("/api/auth/language", {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+      },
+      body: JSON.stringify({ lang }),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      user?: Partial<SessionUser>;
+      token?: string;
+    };
+    const user = parseUser(data);
+    if (user) {
+      if (data.token) cacheSessionToken(data.token);
+      applySessionToClient(user);
+    }
+    return user;
+  } catch {
+    return null;
   }
 }
 

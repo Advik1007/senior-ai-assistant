@@ -14,6 +14,7 @@ export type SessionPayload = {
   email: string;
   name: string;
   lang: AppLanguage;
+  setupCompleted: boolean;
 };
 
 function secretKey(): Uint8Array {
@@ -32,6 +33,7 @@ export async function createSessionToken(
     email: payload.email,
     name: payload.name,
     lang: payload.lang,
+    setupCompleted: payload.setupCompleted ? 1 : 0,
   })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -54,6 +56,10 @@ export async function verifySessionToken(
       email,
       name: String(payload.name ?? ""),
       lang,
+      setupCompleted:
+        payload.setupCompleted === true ||
+        payload.setupCompleted === 1 ||
+        payload.setupCompleted === "1",
     };
   } catch {
     return null;
@@ -61,7 +67,6 @@ export async function verifySessionToken(
 }
 
 function cookieSecure(): boolean {
-  // Always secure on HTTPS hosts (Vercel / Capacitor remote URL).
   return (
     process.env.NODE_ENV === "production" ||
     Boolean(process.env.VERCEL) ||
@@ -69,13 +74,14 @@ function cookieSecure(): boolean {
   );
 }
 
-export async function setSessionCookie(payload: SessionPayload): Promise<string> {
+export async function setSessionCookie(
+  payload: SessionPayload,
+): Promise<string> {
   const token = await createSessionToken(payload);
   const jar = await cookies();
   jar.set(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: cookieSecure(),
-    // Lax works for same-site WebView navigations to the Vercel host.
     sameSite: "lax",
     path: "/",
     maxAge: SESSION_MAX_AGE,

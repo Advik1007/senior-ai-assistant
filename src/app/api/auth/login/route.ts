@@ -36,6 +36,7 @@ export async function POST(request: Request) {
       email: publicUser.email,
       name: publicUser.name,
       lang: publicUser.lang,
+      setupCompleted: publicUser.setupCompleted,
     });
 
     return NextResponse.json({ ok: true, user: publicUser, token });

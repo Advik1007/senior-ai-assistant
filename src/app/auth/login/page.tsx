@@ -85,13 +85,16 @@ export default function LoginPage() {
           email: data.user.email,
           name: data.user.name,
           lang: data.user.lang,
+          setupCompleted: Boolean(data.user.setupCompleted),
         },
         data.token,
       );
       const next = applyAuthToProfile(data.user, profile, prefs);
       setProfile(next.profile);
       setPrefs(next.prefs);
-      const dest = nextPathAfterVerify();
+      const dest = data.user.setupCompleted
+        ? "/home"
+        : nextPathAfterVerify();
       // Hard navigate so Android WebView reliably picks up the session cookie.
       window.location.assign(dest);
     } catch {
