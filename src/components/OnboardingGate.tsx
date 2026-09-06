@@ -42,7 +42,19 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
   }, [decision.allow]);
 
   useEffect(() => {
-    if (decision.redirect) router.replace(decision.redirect);
+    if (!decision.redirect) return;
+    // Prefer hard navigation for onboarding hops to avoid soft-nav loops.
+    if (
+      decision.redirect === "/" ||
+      decision.redirect === "/auth" ||
+      decision.redirect === "/home"
+    ) {
+      if (window.location.pathname !== decision.redirect) {
+        window.location.replace(decision.redirect);
+      }
+      return;
+    }
+    router.replace(decision.redirect);
   }, [decision.redirect, router]);
 
   if (pathname === "/install" || pathname.startsWith("/install/")) {

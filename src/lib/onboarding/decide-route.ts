@@ -12,7 +12,6 @@ export type AuthStatus =
 export type RouteDecision = {
   allow: boolean;
   redirect: string | null;
-  /** Temporary auth outage — do NOT treat as new user / language screen. */
   sessionError: boolean;
 };
 
@@ -63,11 +62,8 @@ export function setupPathForStep(
 export type ResolveRouteInput = {
   pathname: string;
   authStatus: AuthStatus;
-  /** Local device flag — may be missing after storage clear. */
   languageChosen: boolean;
-  /** Local device flag. */
   setupWizardComplete: boolean;
-  /** Server/session flag — authoritative when authenticated. */
   sessionSetupCompleted: boolean;
   setupStep: "contacts" | "routine" | "medicines" | "complete";
 };
@@ -77,6 +73,7 @@ export type ResolveRouteInput = {
  *
  * Authenticated users NEVER go to Language Selection.
  * Temporary auth errors NEVER look like "new user".
+ * Language already chosen → NEVER show Language screen again (including while auth loads).
  */
 export function resolveAppRoute(input: ResolveRouteInput): RouteDecision {
   const {
@@ -96,13 +93,26 @@ export function resolveAppRoute(input: ResolveRouteInput): RouteDecision {
     return { allow: false, redirect: LANGUAGE_PATH, sessionError: false };
   }
 
-  // Wait for session bootstrap — keep current screen, no bounce.
+  // While session bootstraps, still honor local language flag so we never
+  // flash Language ↔ Welcome by allowing "/" when language was already chosen.
   if (authStatus === "loading") {
+    if (languageChosen && isLanguagePath(pathname)) {
+      return { allow: false, redirect: AUTH_PATH, sessionError: false };
+    }
+    if (!languageChosen && !isLanguagePath(pathname)) {
+      return { allow: false, redirect: LANGUAGE_PATH, sessionError: false };
+    }
     return { allow: true, redirect: null, sessionError: false };
   }
 
-  // Auth service blip — never send to Language as if new.
   if (authStatus === "error") {
+    // Keep users off Language; prefer auth shell if language already chosen.
+    if (!languageChosen && !isLanguagePath(pathname)) {
+      return { allow: false, redirect: LANGUAGE_PATH, sessionError: false };
+    }
+    if (languageChosen && isLanguagePath(pathname)) {
+      return { allow: false, redirect: AUTH_PATH, sessionError: false };
+    }
     return { allow: true, redirect: null, sessionError: true };
   }
 
@@ -117,7 +127,6 @@ export function resolveAppRoute(input: ResolveRouteInput): RouteDecision {
       return { allow: true, redirect: null, sessionError: false };
     }
 
-    // Setup incomplete — resume wizard. Never Language.
     if (pathname === "/auth/setup-calls") {
       return {
         allow: false,
@@ -144,8 +153,7 @@ export function resolveAppRoute(input: ResolveRouteInput): RouteDecision {
     return { allow: true, redirect: null, sessionError: false };
   }
 
-  // ── Anonymous (logged out) ──
-  // Language only for true first-time devices.
+  // ── Anonymous ──
   if (!languageChosen) {
     if (isLanguagePath(pathname)) {
       return { allow: true, redirect: null, sessionError: false };
@@ -153,7 +161,11 @@ export function resolveAppRoute(input: ResolveRouteInput): RouteDecision {
     return { allow: false, redirect: LANGUAGE_PATH, sessionError: false };
   }
 
-  // Language already chosen → Login/Signup only (logout lands here).
+  // Language already chosen — never return to Language Selection.
+  if (isLanguagePath(pathname)) {
+    return { allow: false, redirect: AUTH_PATH, sessionError: false };
+  }
+
   if (isAuthPath(pathname)) {
     return { allow: true, redirect: null, sessionError: false };
   }

@@ -2,6 +2,8 @@ import { readJson, writeJson } from "@/lib/storage/local-store";
 import { emitStore } from "@/lib/storage/store-events";
 
 const PERSIST_KEY = "unk.onboarding";
+/** Backup cookie so Language↔Welcome cannot loop if localStorage is flaky. */
+const LANG_COOKIE = "unk_lang_chosen";
 /** @deprecated migrated to localStorage field languageChosen */
 const LEGACY_SESSION_LANGUAGE_KEY = "unk.session.languageChosen";
 
@@ -30,7 +32,6 @@ let cache: OnboardingState | null = null;
 type PersistedOnboarding = Partial<{
   languageChosen: boolean;
   emailVerified: boolean;
-  /** @deprecated old flag — no longer counts as setup complete */
   callsSetup: boolean;
   setupComplete: boolean;
   setupWizardComplete: boolean;
@@ -42,28 +43,83 @@ function clearLegacyLanguageFlag(): void {
   window.sessionStorage.removeItem(LEGACY_SESSION_LANGUAGE_KEY);
 }
 
+function readLangCookie(): boolean {
+  if (typeof document === "undefined") return false;
+  try {
+    return document.cookie.split(";").some((part) => {
+      const [key, value] = part.trim().split("=");
+      return key === LANG_COOKIE && value === "1";
+    });
+  } catch {
+    return false;
+  }
+}
+
+function writeLangCookie(chosen: boolean): void {
+  if (typeof document === "undefined") return;
+  try {
+    const maxAge = chosen ? 60 * 60 * 24 * 365 * 2 : 0;
+    const secure =
+      typeof location !== "undefined" && location.protocol === "https:"
+        ? "; Secure"
+        : "";
+    document.cookie = `${LANG_COOKIE}=${chosen ? "1" : ""}; Path=/; Max-Age=${maxAge}; SameSite=Lax${secure}`;
+  } catch {
+    // ignore
+  }
+}
+
 function readPersisted(): PersistedOnboarding {
   return readJson<PersistedOnboarding>(PERSIST_KEY, {});
+}
+
+function buildState(persisted: PersistedOnboarding): OnboardingState {
+  const fromStorage = !!persisted.languageChosen;
+  const fromCookie = readLangCookie();
+  const languageChosen = fromStorage || fromCookie;
+
+  // Heal storage if cookie survived but localStorage was cleared.
+  if (languageChosen && !fromStorage) {
+    try {
+      writeJson(PERSIST_KEY, {
+        ...persisted,
+        languageChosen: true,
+      });
+    } catch {
+      // ignore
+    }
+  }
+  if (languageChosen && !fromCookie) {
+    writeLangCookie(true);
+  }
+
+  return {
+    languageChosen,
+    emailVerified: !!persisted.emailVerified,
+    setupComplete: !!persisted.setupComplete,
+    setupWizardComplete: !!persisted.setupWizardComplete,
+    setupStep: persisted.setupStep ?? "contacts",
+  };
 }
 
 export function getOnboardingSnapshot(): OnboardingState {
   if (typeof window === "undefined") return DEFAULT;
   if (!cache) {
-    const persisted = readPersisted();
     clearLegacyLanguageFlag();
-    cache = {
-      languageChosen: !!persisted.languageChosen,
-      emailVerified: !!persisted.emailVerified,
-      setupComplete: !!persisted.setupComplete,
-      setupWizardComplete: !!persisted.setupWizardComplete,
-      setupStep: persisted.setupStep ?? "contacts",
-    };
+    cache = buildState(readPersisted());
   }
   return cache;
 }
 
+/** Force re-read from disk/cookie (after external writes). */
+export function refreshOnboardingSnapshot(): OnboardingState {
+  cache = null;
+  return getOnboardingSnapshot();
+}
+
 export function saveOnboarding(state: OnboardingState): void {
   cache = state;
+  writeLangCookie(state.languageChosen);
   writeJson(PERSIST_KEY, {
     languageChosen: state.languageChosen,
     emailVerified: state.emailVerified,
@@ -76,7 +132,8 @@ export function saveOnboarding(state: OnboardingState): void {
 
 /** Only call from the language selection screen after the user taps a language. */
 export function markLanguageChosen(): void {
-  saveOnboarding({ ...getOnboardingSnapshot(), languageChosen: true });
+  const current = getOnboardingSnapshot();
+  saveOnboarding({ ...current, languageChosen: true });
 }
 
 export function clearLanguageChoice(): void {
@@ -114,14 +171,13 @@ export function markSetupComplete(): void {
 
 /** @deprecated Old phone/contacts screen — does not finish the setup wizard. */
 export function markCallsSetup(): void {
-  // Intentionally no-op: users must complete /setup/* through /setup/complete.
+  // Intentionally no-op.
 }
 
 export function setupPathForStep(step: SetupStep): string {
   return `/setup/${step}`;
 }
 
-/** Next URL after language is chosen (caller should send to login if not authenticated). */
 export function nextPathAfterLanguage(): string {
   const state = getOnboardingSnapshot();
   if (!state.setupWizardComplete) {
@@ -130,14 +186,12 @@ export function nextPathAfterLanguage(): string {
   return "/home";
 }
 
-/** Next URL after email is verified. */
 export function nextPathAfterVerify(): string {
   const state = getOnboardingSnapshot();
   if (!state.setupWizardComplete) return "/setup/contacts";
   return "/home";
 }
 
-/** User finished language, login, and the contacts → routine → medicines wizard. */
 export function isOnboardingFinished(
   state: OnboardingState = getOnboardingSnapshot(),
 ): boolean {
@@ -153,7 +207,6 @@ export function clearAuthenticatedOnboarding(): void {
   });
 }
 
-/** Run contacts → routine → medicines → complete again (keeps language + login). */
 export function restartSetupWizard(): void {
   saveOnboarding({
     ...getOnboardingSnapshot(),
@@ -163,7 +216,6 @@ export function restartSetupWizard(): void {
   });
 }
 
-/** Full first-time flow from language selection. */
 export function restartOnboardingFromLanguage(): void {
   resetOnboarding();
 }
@@ -174,5 +226,6 @@ export function resetOnboarding(): void {
     localStorage.removeItem(PERSIST_KEY);
     sessionStorage.removeItem(LEGACY_SESSION_LANGUAGE_KEY);
   }
+  writeLangCookie(false);
   saveOnboarding({ ...DEFAULT });
 }

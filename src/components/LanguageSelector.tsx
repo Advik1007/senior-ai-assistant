@@ -9,16 +9,25 @@ export function LanguageSelector() {
   const { prefs, setPrefs, setProfile, profile, strings } = useApp();
 
   function selectLanguage(code: AppLanguage) {
+    // Persist language choice BEFORE navigation so /auth never bounces back.
     setPrefs({ ...prefs, language: code });
     setProfile({ ...profile, preferredLanguage: code });
     markLanguageChosen();
-    // Hard navigate so Create Account / Sign in always appears next
-    window.location.assign("/auth");
+    // Hard navigation with replace so Back does not return to Language.
+    window.location.replace("/auth");
   }
 
   return (
-    <OnboardingShell lang={prefs.language} title={strings.languageChoose} tagline={strings.tagline}>
-      <ul className="m-0 list-none p-0" role="listbox" aria-label={strings.languageChoose}>
+    <OnboardingShell
+      lang={prefs.language}
+      title={strings.languageChoose}
+      tagline={strings.tagline}
+    >
+      <ul
+        className="m-0 list-none p-0"
+        role="listbox"
+        aria-label={strings.languageChoose}
+      >
         {LANGUAGES.map((lang) => (
           <li key={lang.code} role="presentation">
             <button
@@ -31,7 +40,9 @@ export function LanguageSelector() {
               <span className="text-2xl font-semibold text-[#0B1F3A] sm:text-3xl">
                 {lang.nativeLabel}
               </span>
-              <span className="text-lg text-[#8a9bb0] sm:text-xl">{lang.englishName}</span>
+              <span className="text-lg text-[#8a9bb0] sm:text-xl">
+                {lang.englishName}
+              </span>
             </button>
           </li>
         ))}
