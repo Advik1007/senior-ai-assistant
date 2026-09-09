@@ -109,7 +109,11 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
     };
   }, [pathname, authStatus, sessionUser, router]);
 
+  // Public website + inbox bypass the app gate entirely.
   if (
+    pathname === "/" ||
+    pathname === "/download" ||
+    pathname.startsWith("/download/") ||
     pathname === "/install" ||
     pathname.startsWith("/install/") ||
     pathname === "/inbox" ||

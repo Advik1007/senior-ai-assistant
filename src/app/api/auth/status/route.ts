@@ -10,11 +10,27 @@ function cleanEnv(value: string | undefined): string {
     .replace(/[^\x20-\x7E]/g, "");
 }
 
-export async function GET() {
+function isProductionRuntime(): boolean {
+  return (
+    process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL)
+  );
+}
+
+/**
+ * Ops diagnostics. In production this requires `Authorization: Bearer <INBOX_SECRET>`.
+ * Never returns secret values — only readiness flags.
+ */
+export async function GET(request: Request) {
+  if (isProductionRuntime()) {
+    const secret = process.env.INBOX_SECRET?.trim();
+    const auth = request.headers.get("authorization")?.trim() || "";
+    const ok = Boolean(secret) && auth === `Bearer ${secret}`;
+    if (!ok) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+  }
+
   const missing = getMissingEmailEnv();
-  const relatedKeys = Object.keys(process.env)
-    .filter((key) => /RESEND|AUTH|TURSO|DATABASE|GEMINI|^AI_/i.test(key))
-    .sort();
 
   const hasAiKey = Boolean(
     cleanEnv(process.env.GEMINI_API_KEY) || cleanEnv(process.env.AI_API_KEY),
@@ -68,7 +84,6 @@ export async function GET() {
       process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
     ),
     configuredAppUrl: process.env.APP_URL?.trim() || null,
-    relatedKeys,
     hint:
       missing.length > 0 || !dbReady
         ? "Update TURSO_DATABASE_URL + TURSO_AUTH_TOKEN in Vercel Production, then Redeploy (env changes do not apply until redeploy)."

@@ -131,7 +131,7 @@ export default function SignupPage() {
           <OnboardingLink
             onClick={() => {
               clearLanguageChoice();
-              router.replace("/");
+              router.replace("/start");
             }}
           >
             {strings.authChangeLanguage}

@@ -35,6 +35,9 @@ const serverUrl =
   process.env.APP_URL?.trim() ||
   "";
 
+const isHttps = serverUrl.startsWith("https://");
+const isHttp = serverUrl.startsWith("http://");
+
 const config: CapacitorConfig = {
   appId: "ai.unk.app",
   appName: "UNK AI",
@@ -43,15 +46,17 @@ const config: CapacitorConfig = {
     ...(serverUrl
       ? {
           url: serverUrl,
-          cleartext: serverUrl.startsWith("http://"),
-          androidScheme: serverUrl.startsWith("https://") ? "https" : "http",
+          // Cleartext only for local HTTP dev — never for production HTTPS.
+          cleartext: isHttp,
+          androidScheme: isHttps ? "https" : "http",
         }
       : {}),
     // Local loading page + auto-retry instead of Chrome "webpage could not be loaded"
     errorPath: "offline.html",
   },
   android: {
-    allowMixedContent: true,
+    // Mixed content only when debugging over HTTP; production HTTPS stays strict.
+    allowMixedContent: isHttp,
     // Explicit: accidental pinch/double-tap must not scale the UI.
     zoomEnabled: false,
   },

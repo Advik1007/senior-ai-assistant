@@ -26,7 +26,7 @@ export default function AuthWelcomePage() {
         <OnboardingLink
           onClick={() => {
             clearLanguageChoice();
-            router.replace("/");
+            router.replace("/start");
           }}
         >
           {strings.authChangeLanguage}

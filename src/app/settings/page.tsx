@@ -345,7 +345,7 @@ export default function SettingsPage() {
             void (async () => {
               await logoutSession();
               restartOnboardingFromLanguage();
-              window.location.href = "/";
+              window.location.href = "/start";
             })();
           }}
         >

@@ -17,7 +17,7 @@ export type RouteDecision = {
   sessionError: boolean;
 };
 
-const LANGUAGE_PATH = "/";
+const LANGUAGE_PATH = "/start";
 const AUTH_PATH = "/auth";
 const HOME_PATH = "/home";
 
@@ -45,7 +45,17 @@ export function isInboxPath(path: string): boolean {
 }
 
 export function isLanguagePath(path: string): boolean {
-  return path === LANGUAGE_PATH || path === "/language";
+  return path === LANGUAGE_PATH || path === "/language" || path === "/start";
+}
+
+export function isMarketingPath(path: string): boolean {
+  return (
+    path === "/" ||
+    path === "/download" ||
+    path.startsWith("/download/") ||
+    path === "/install" ||
+    path.startsWith("/install/")
+  );
 }
 
 export function isAuthPath(path: string): boolean {
@@ -105,7 +115,8 @@ export function resolveAppRoute(input: ResolveRouteInput): RouteDecision {
     flowFloor,
   } = input;
 
-  if (isInstallPath(pathname) || isInboxPath(pathname)) {
+  // Public website + inbox — never force into the app onboarding flow.
+  if (isMarketingPath(pathname) || isInboxPath(pathname)) {
     return { allow: true, redirect: null, sessionError: false };
   }
 

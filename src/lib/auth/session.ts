@@ -17,11 +17,26 @@ export type SessionPayload = {
   setupCompleted: boolean;
 };
 
+function isProductionRuntime(): boolean {
+  return (
+    process.env.NODE_ENV === "production" ||
+    Boolean(process.env.VERCEL) ||
+    Boolean(process.env.APP_URL?.startsWith("https://"))
+  );
+}
+
 function secretKey(): Uint8Array {
   const secret =
-    process.env.AUTH_SECRET ||
-    process.env.DEVICE_ALERT_SECRET ||
-    "unk-ai-dev-secret-change-in-production";
+    process.env.AUTH_SECRET?.trim() ||
+    process.env.DEVICE_ALERT_SECRET?.trim() ||
+    "";
+  if (!secret) {
+    if (isProductionRuntime()) {
+      throw new Error("AUTH_SECRET must be configured in production.");
+    }
+    // Local development only — never used on Vercel / production builds.
+    return new TextEncoder().encode("unk-ai-dev-secret-change-in-production");
+  }
   return new TextEncoder().encode(secret);
 }
 
@@ -67,11 +82,7 @@ export async function verifySessionToken(
 }
 
 function cookieSecure(): boolean {
-  return (
-    process.env.NODE_ENV === "production" ||
-    Boolean(process.env.VERCEL) ||
-    Boolean(process.env.APP_URL?.startsWith("https://"))
-  );
+  return isProductionRuntime();
 }
 
 export async function setSessionCookie(

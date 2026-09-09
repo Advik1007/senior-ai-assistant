@@ -24,6 +24,9 @@ public class MainActivity extends BridgeActivity {
 
   @Override
   public void onCreate(Bundle savedInstanceState) {
+    // Chrome remote debugging only in debug builds — never in release.
+    WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG);
+
     super.onCreate(savedInstanceState);
     if (bridge == null) {
       return;
@@ -91,11 +94,18 @@ public class MainActivity extends BridgeActivity {
 
     WebSettings settings = webView.getSettings();
     settings.setDomStorageEnabled(true);
-    settings.setDatabaseEnabled(true);
+    // Web SQL is unused; keep disabled to reduce attack surface.
+    settings.setDatabaseEnabled(false);
     settings.setMediaPlaybackRequiresUserGesture(true);
     settings.setGeolocationEnabled(false);
     settings.setCacheMode(WebSettings.LOAD_DEFAULT);
     settings.setSaveFormData(false);
+    // Allow file access only when loading local offline assets; remote HTTPS app
+    // content does not need broad file:// access.
+    settings.setAllowFileAccess(true);
+    settings.setAllowContentAccess(false);
+    settings.setAllowFileAccessFromFileURLs(false);
+    settings.setAllowUniversalAccessFromFileURLs(false);
   }
 
   private void scheduleAutoReload() {
