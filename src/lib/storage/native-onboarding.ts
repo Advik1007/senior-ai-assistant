@@ -23,6 +23,7 @@ type NativePayload = {
   setupComplete: boolean;
   setupWizardComplete: boolean;
   setupStep: SetupStep;
+  flowFloor?: string;
   language?: string;
 };
 
@@ -44,6 +45,7 @@ export async function persistOnboardingToNative(
       setupComplete: state.setupComplete,
       setupWizardComplete: state.setupWizardComplete,
       setupStep: state.setupStep,
+      flowFloor: state.flowFloor,
       language,
     };
     await Preferences.set({
@@ -68,6 +70,15 @@ export async function hydrateOnboardingFromNative(): Promise<OnboardingState | n
     );
     const local = getOnboardingSnapshot();
 
+    const { flowFloorRank } = await import("@/lib/storage/onboarding");
+    const nativeFloor =
+      (parsed.flowFloor as OnboardingState["flowFloor"]) || "language";
+    const localFloor = local.flowFloor || "language";
+    const flowFloor =
+      flowFloorRank(nativeFloor) >= flowFloorRank(localFloor)
+        ? nativeFloor
+        : localFloor;
+
     const merged: OnboardingState = {
       languageChosen: Boolean(parsed.languageChosen || local.languageChosen),
       emailVerified: Boolean(parsed.emailVerified || local.emailVerified),
@@ -78,6 +89,7 @@ export async function hydrateOnboardingFromNative(): Promise<OnboardingState | n
       setupStep: (parsed.setupStep ||
         local.setupStep ||
         "contacts") as SetupStep,
+      flowFloor,
     };
 
     saveOnboarding(merged);

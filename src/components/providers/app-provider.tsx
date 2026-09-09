@@ -7,6 +7,7 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
   type ReactNode,
@@ -19,6 +20,7 @@ import {
   fetchSessionUserResilient,
   logoutSession,
   readCachedSessionUser,
+  readSessionToken,
   subscribeAuthLogout,
   type SessionUser,
 } from "@/lib/auth/client-session";
@@ -59,6 +61,11 @@ type AppContextValue = {
 
 const AppContext = createContext<AppContextValue | null>(null);
 
+function initialSessionUser(): SessionUser | null {
+  if (typeof window === "undefined") return null;
+  return readCachedSessionUser();
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const prefs = useSyncExternalStore(
     subscribeStore,
@@ -76,8 +83,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     () => DEFAULT_CONTACTS,
   );
 
-  const [authStatus, setAuthStatus] = useState<AuthStatus>("loading");
-  const [sessionUser, setSessionUser] = useState<SessionUser | null>(null);
+  // Hydrate from local cache immediately — never start as a blank "null session"
+  // that the gate can treat as anonymous before /api/auth/me returns.
+  const cachedAtStart = initialSessionUser();
+  const [authStatus, setAuthStatus] = useState<AuthStatus>(() =>
+    cachedAtStart ? "authenticated" : "loading",
+  );
+  const [sessionUser, setSessionUser] = useState<SessionUser | null>(
+    () => cachedAtStart,
+  );
+
+  /** Bumped on login/logout so in-flight /me responses cannot clobber a fresh session. */
+  const authEpoch = useRef(0);
 
   const setPrefs = useCallback((next: AccessibilityPreferences) => {
     savePreferences(next);
@@ -92,6 +109,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const completeLogin = useCallback((user: SessionUser, token?: string) => {
+    authEpoch.current += 1;
     if (token) cacheSessionToken(token);
     applySessionToClient(user);
     setSessionUser(user);
@@ -99,16 +117,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    authEpoch.current += 1;
     await logoutSession();
     setSessionUser(null);
     setAuthStatus("anonymous");
-    // Keep language preference — go to Login, not Language Selection.
     window.location.href = "/auth/login";
   }, []);
 
   useLayoutEffect(() => {
     void (async () => {
-      // Android app: restore onboarding from native Preferences before auth gate runs.
       await hydrateOnboardingFromNative();
       const cached = readCachedSessionUser();
       if (cached) {
@@ -121,11 +138,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
+    const epochAtStart = authEpoch.current;
     const cached = readCachedSessionUser();
 
     void (async () => {
       const { user, unauthorized, error } = await fetchSessionUserResilient();
       if (cancelled) return;
+      // Login/logout happened while /me was in flight — ignore stale result.
+      if (epochAtStart !== authEpoch.current) return;
 
       if (user) {
         applySessionToClient(user);
@@ -135,17 +155,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       if (unauthorized) {
+        // Keep a locally established session (Bearer token) if /me cookie failed
+        // but we still have a token + cached user from a successful login.
+        const stillCached = readCachedSessionUser();
+        const token = readSessionToken();
+        if (stillCached && token) {
+          applySessionToClient(stillCached);
+          setSessionUser(stillCached);
+          setAuthStatus("authenticated");
+          return;
+        }
         clearSessionOnClient();
         setSessionUser(null);
         setAuthStatus("anonymous");
         return;
       }
 
-      if (cached) {
-        applySessionToClient(cached);
-        setSessionUser(cached);
-        setAuthStatus("authenticated");
-        return;
+      if (cached || readCachedSessionUser()) {
+        const keep = cached || readCachedSessionUser();
+        if (keep) {
+          applySessionToClient(keep);
+          setSessionUser(keep);
+          setAuthStatus("authenticated");
+          return;
+        }
       }
 
       if (error) {
@@ -166,6 +199,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     return subscribeAuthLogout(() => {
+      authEpoch.current += 1;
       clearSessionOnClient();
       setSessionUser(null);
       setAuthStatus("anonymous");

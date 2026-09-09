@@ -1,6 +1,6 @@
 /**
  * SINGLE source of truth for UNK AI onboarding / auth redirects.
- * OnboardingGate must use this — no other component should invent redirects.
+ * Forward-only: never auto-send users to an earlier stage.
  */
 
 export type AuthStatus =
@@ -8,6 +8,8 @@ export type AuthStatus =
   | "authenticated"
   | "anonymous"
   | "error";
+
+export type FlowFloor = "language" | "auth" | "setup" | "done";
 
 export type RouteDecision = {
   allow: boolean;
@@ -27,8 +29,19 @@ const AUTH_PREFIXES = [
   "/auth/device/",
 ];
 
+const FLOOR_RANK: Record<FlowFloor, number> = {
+  language: 0,
+  auth: 1,
+  setup: 2,
+  done: 3,
+};
+
 export function isInstallPath(path: string): boolean {
   return path === "/install" || path.startsWith("/install/");
+}
+
+export function isInboxPath(path: string): boolean {
+  return path === "/inbox" || path.startsWith("/inbox/");
 }
 
 export function isLanguagePath(path: string): boolean {
@@ -59,6 +72,13 @@ export function setupPathForStep(
   return `/setup/${step}`;
 }
 
+function pathFloor(path: string): FlowFloor {
+  if (isLanguagePath(path)) return "language";
+  if (isAuthPath(path) || path === "/auth/setup-calls") return "auth";
+  if (isSetupPath(path)) return "setup";
+  return "done";
+}
+
 export type ResolveRouteInput = {
   pathname: string;
   authStatus: AuthStatus;
@@ -66,14 +86,13 @@ export type ResolveRouteInput = {
   setupWizardComplete: boolean;
   sessionSetupCompleted: boolean;
   setupStep: "contacts" | "routine" | "medicines" | "complete";
+  flowFloor: FlowFloor;
 };
 
 /**
- * Deterministic route resolver.
- *
- * Authenticated users NEVER go to Language Selection.
- * Temporary auth errors NEVER look like "new user".
- * Language already chosen → NEVER show Language screen again (including while auth loads).
+ * Forward-only resolver.
+ * Going backward is only possible after an explicit button clears the floor
+ * (e.g. Change language → flowFloor = language).
  */
 export function resolveAppRoute(input: ResolveRouteInput): RouteDecision {
   const {
@@ -83,9 +102,10 @@ export function resolveAppRoute(input: ResolveRouteInput): RouteDecision {
     setupWizardComplete,
     sessionSetupCompleted,
     setupStep,
+    flowFloor,
   } = input;
 
-  if (isInstallPath(pathname)) {
+  if (isInstallPath(pathname) || isInboxPath(pathname)) {
     return { allow: true, redirect: null, sessionError: false };
   }
 
@@ -93,34 +113,53 @@ export function resolveAppRoute(input: ResolveRouteInput): RouteDecision {
     return { allow: false, redirect: LANGUAGE_PATH, sessionError: false };
   }
 
-  // While session bootstraps, still honor local language flag so we never
-  // flash Language ↔ Welcome by allowing "/" when language was already chosen.
-  if (authStatus === "loading") {
-    if (languageChosen && isLanguagePath(pathname)) {
+  const setupDone = sessionSetupCompleted || setupWizardComplete;
+  const floor: FlowFloor = setupDone
+    ? "done"
+    : languageChosen && FLOOR_RANK[flowFloor] < FLOOR_RANK.auth
+      ? "auth"
+      : flowFloor;
+
+  // Hard lock: never open a screen behind the floor (except install).
+  const attempted = pathFloor(pathname);
+  if (FLOOR_RANK[attempted] < FLOOR_RANK[floor]) {
+    if (floor === "done") {
+      return { allow: false, redirect: HOME_PATH, sessionError: false };
+    }
+    if (floor === "setup") {
+      return {
+        allow: false,
+        redirect: setupPathForStep(setupStep || "contacts"),
+        sessionError: false,
+      };
+    }
+    if (floor === "auth") {
       return { allow: false, redirect: AUTH_PATH, sessionError: false };
     }
-    if (!languageChosen && !isLanguagePath(pathname)) {
+  }
+
+  if (authStatus === "loading") {
+    if (floor !== "language" && isLanguagePath(pathname)) {
+      return { allow: false, redirect: AUTH_PATH, sessionError: false };
+    }
+    if (floor === "language" && !isLanguagePath(pathname)) {
       return { allow: false, redirect: LANGUAGE_PATH, sessionError: false };
     }
     return { allow: true, redirect: null, sessionError: false };
   }
 
   if (authStatus === "error") {
-    // Keep users off Language; prefer auth shell if language already chosen.
-    if (!languageChosen && !isLanguagePath(pathname)) {
+    if (floor === "language" && !isLanguagePath(pathname)) {
       return { allow: false, redirect: LANGUAGE_PATH, sessionError: false };
     }
-    if (languageChosen && isLanguagePath(pathname)) {
+    if (floor !== "language" && isLanguagePath(pathname)) {
       return { allow: false, redirect: AUTH_PATH, sessionError: false };
     }
     return { allow: true, redirect: null, sessionError: true };
   }
 
-  const setupDone = sessionSetupCompleted || setupWizardComplete;
-
-  // ── Authenticated ──
   if (authStatus === "authenticated") {
-    if (setupDone) {
+    if (setupDone || floor === "done") {
       if (isOnboardingEntryPath(pathname)) {
         return { allow: false, redirect: HOME_PATH, sessionError: false };
       }
@@ -145,7 +184,8 @@ export function resolveAppRoute(input: ResolveRouteInput): RouteDecision {
     if (steps.includes(pathStep)) {
       const pathIndex = steps.indexOf(pathStep);
       const expectedIndex = steps.indexOf(setupStep || "contacts");
-      if (pathIndex > expectedIndex) {
+      // Forward-only inside setup — cannot open an earlier step.
+      if (pathIndex !== expectedIndex) {
         return { allow: false, redirect: expected, sessionError: false };
       }
     }
@@ -153,21 +193,27 @@ export function resolveAppRoute(input: ResolveRouteInput): RouteDecision {
     return { allow: true, redirect: null, sessionError: false };
   }
 
-  // ── Anonymous ──
-  if (!languageChosen) {
+  // Anonymous — stay on auth screens; never yank setup/home mid-login.
+  // Only bounce non-auth routes to Welcome (/auth), and never while loading.
+  if (floor === "language" || !languageChosen) {
     if (isLanguagePath(pathname)) {
       return { allow: true, redirect: null, sessionError: false };
     }
     return { allow: false, redirect: LANGUAGE_PATH, sessionError: false };
   }
 
-  // Language already chosen — never return to Language Selection.
   if (isLanguagePath(pathname)) {
     return { allow: false, redirect: AUTH_PATH, sessionError: false };
   }
 
   if (isAuthPath(pathname)) {
     return { allow: true, redirect: null, sessionError: false };
+  }
+
+  // Setup/home without a resolved session: send to login (not Welcome),
+  // so a transient anonymous blip does not look like a full restart.
+  if (isSetupPath(pathname) || pathname === HOME_PATH || pathname.startsWith("/home")) {
+    return { allow: false, redirect: "/auth/login", sessionError: false };
   }
 
   return { allow: false, redirect: AUTH_PATH, sessionError: false };

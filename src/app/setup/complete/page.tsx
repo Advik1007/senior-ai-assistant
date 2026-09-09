@@ -18,7 +18,7 @@ export default function SetupCompletePage() {
     markSetupComplete();
     const user = await persistSetupComplete();
     if (user) completeLogin(user);
-    router.push("/home");
+    router.replace("/home");
   }
 
   return (

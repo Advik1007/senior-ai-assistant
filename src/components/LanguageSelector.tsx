@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { OnboardingShell } from "@/components/OnboardingShell";
 import { useApp } from "@/components/providers/app-provider";
 import { LANGUAGES, type AppLanguage } from "@/lib/languages";
@@ -7,15 +8,15 @@ import { getOnboardingSnapshot, markLanguageChosen } from "@/lib/storage/onboard
 import { persistOnboardingToNative } from "@/lib/storage/native-onboarding";
 
 export function LanguageSelector() {
+  const router = useRouter();
   const { prefs, setPrefs, setProfile, profile, strings } = useApp();
 
   async function selectLanguage(code: AppLanguage) {
     setPrefs({ ...prefs, language: code });
     setProfile({ ...profile, preferredLanguage: code });
     markLanguageChosen();
-    // Wait for native Preferences write before leaving Language (Android app).
     await persistOnboardingToNative(getOnboardingSnapshot(), code);
-    window.location.replace("/auth");
+    router.replace("/auth");
   }
 
   return (
@@ -25,7 +26,7 @@ export function LanguageSelector() {
       tagline={strings.tagline}
     >
       <ul
-        className="m-0 list-none p-0"
+        className="m-0 grid list-none grid-cols-1 content-start gap-0 p-0 sm:grid-cols-2"
         role="listbox"
         aria-label={strings.languageChoose}
       >
@@ -36,12 +37,12 @@ export function LanguageSelector() {
               role="option"
               aria-selected={prefs.language === lang.code}
               onClick={() => void selectLanguage(lang.code)}
-              className="flex min-h-[4.5rem] w-full cursor-pointer items-center justify-between border-b border-[#0B1F3A]/10 px-2 py-4 text-left last:border-b-0 hover:bg-[#f7f9fb] hover:text-[#0B4F8A] focus-visible:bg-[#eef4fa] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#0B4F8A]/25"
+              className="flex min-h-12 w-full cursor-pointer items-center justify-between border-b border-[#0B1F3A]/10 px-2 py-3 text-left hover:bg-[#f7f9fb] hover:text-[#0B4F8A] focus-visible:bg-[#eef4fa] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B4F8A]/25"
             >
-              <span className="text-2xl font-semibold text-[#0B1F3A] sm:text-3xl">
+              <span className="text-lg font-semibold text-[#0B1F3A] sm:text-xl">
                 {lang.nativeLabel}
               </span>
-              <span className="text-lg text-[#8a9bb0] sm:text-xl">
+              <span className="text-sm text-[#8a9bb0] sm:text-base">
                 {lang.englishName}
               </span>
             </button>

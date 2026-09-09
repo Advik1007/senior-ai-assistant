@@ -4,7 +4,13 @@ import { catalogToNested, type AppStrings } from "@/lib/i18n/nested";
 
 export type { AppStrings };
 
-/** UI strings for the selected language (all 14 UNK AI languages). */
+const cache = new Map<AppLanguage, AppStrings>();
+
+/** UI strings for the selected language (cached — avoid rebuild on every render). */
 export function t(lang: AppLanguage): AppStrings {
-  return catalogToNested(CATALOGS[lang] ?? CATALOGS.en);
+  const hit = cache.get(lang);
+  if (hit) return hit;
+  const next = catalogToNested(CATALOGS[lang] ?? CATALOGS.en);
+  cache.set(lang, next);
+  return next;
 }

@@ -49,7 +49,7 @@ export default function SetupContactsPage() {
   function goRoutine() {
     setProfile({ ...profile, phone: userPhone.trim() });
     markSetupStep("routine");
-    router.push("/setup/routine");
+    router.replace("/setup/routine");
   }
 
   function applyParsed() {

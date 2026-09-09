@@ -61,5 +61,24 @@ fs.writeFileSync(
 );
 
 console.log(`Syncing Android app → ${url}`);
-execSync("npx cap sync android", { stdio: "inherit", env: process.env });
+
+// Don't pack the ~4MB install APK into Capacitor assets (install/sync bloat).
+const downloadsDir = path.join(process.cwd(), "public", "downloads");
+const apkPath = path.join(downloadsDir, "unk-ai.apk");
+const apkBackup = path.join(process.cwd(), ".tmp-unk-ai.apk.bak");
+let movedApk = false;
+if (fs.existsSync(apkPath)) {
+  fs.renameSync(apkPath, apkBackup);
+  movedApk = true;
+}
+
+try {
+  execSync("npx cap sync android", { stdio: "inherit", env: process.env });
+} finally {
+  if (movedApk && fs.existsSync(apkBackup)) {
+    fs.mkdirSync(downloadsDir, { recursive: true });
+    fs.renameSync(apkBackup, apkPath);
+  }
+}
+
 console.log("Done. Open Android Studio: npm run android:open");

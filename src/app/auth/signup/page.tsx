@@ -17,7 +17,7 @@ import {
   authErrorMessage,
   type AuthUser,
 } from "@/lib/auth/client";
-import { clearLanguageChoice } from "@/lib/storage/onboarding";
+import { clearLanguageChoice, markEnteredSetupFlow } from "@/lib/storage/onboarding";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -108,7 +108,8 @@ export default function SignupPage() {
       const next = applyAuthToProfile(data.user, profile, prefs);
       setProfile(next.profile);
       setPrefs(next.prefs);
-      window.location.assign("/setup/contacts");
+      markEnteredSetupFlow();
+      router.replace("/setup/contacts");
     } catch {
       setError(strings.authErrorGeneric);
     } finally {
@@ -130,7 +131,7 @@ export default function SignupPage() {
           <OnboardingLink
             onClick={() => {
               clearLanguageChoice();
-              router.push("/");
+              router.replace("/");
             }}
           >
             {strings.authChangeLanguage}

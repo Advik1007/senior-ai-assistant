@@ -18,11 +18,11 @@ export function AppShell({
 
   return (
     <div
-      className="mx-auto flex min-h-dvh w-full max-w-lg flex-col px-4 pb-8 pt-4"
+      className="mx-auto flex min-h-svh w-full max-w-lg flex-col px-4 pb-8 pt-4"
       data-text-size={prefs.textSize}
       data-a11y={prefs.accessibilityMode ? "on" : "off"}
     >
-      <header className="mb-4 flex items-center gap-3">
+      <header className="mb-3 flex shrink-0 items-center gap-3">
         {showBack ? (
           <Link
             href="/home"
@@ -43,7 +43,8 @@ export function AppShell({
           </h1>
         </div>
       </header>
-      <main className="flex flex-1 flex-col gap-4">{children}</main>
+      {/* Document scrolls — do not nest overflow-y-auto here (WebView snap-back). */}
+      <main className="flex flex-1 flex-col gap-3">{children}</main>
     </div>
   );
 }

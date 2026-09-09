@@ -22,6 +22,9 @@ export const DEFAULT_PROFILE: UserProfile = {
 
 let prefsCache: AccessibilityPreferences | null = null;
 let profileCache: UserProfile | null = null;
+let prefsWriteTimer: ReturnType<typeof setTimeout> | null = null;
+let profileWriteTimer: ReturnType<typeof setTimeout> | null = null;
+const PERSIST_MS = 250;
 
 export function getPreferencesSnapshot(): AccessibilityPreferences {
   if (typeof window === "undefined") return DEFAULT_PREFERENCES;
@@ -38,10 +41,30 @@ export function loadPreferences(): AccessibilityPreferences {
   return getPreferencesSnapshot();
 }
 
-export function savePreferences(prefs: AccessibilityPreferences): void {
+/**
+ * Update prefs in memory immediately; debounce disk write.
+ * Use emit=false while typing drafts so the whole app doesn't re-render.
+ */
+export function savePreferences(
+  prefs: AccessibilityPreferences,
+  opts?: { emit?: boolean; flush?: boolean },
+): void {
   prefsCache = prefs;
-  writeJson(PREFS_KEY, prefs);
-  emitStore();
+  const emit = opts?.emit !== false;
+  const flush = opts?.flush === true;
+
+  const persist = () => {
+    prefsWriteTimer = null;
+    writeJson(PREFS_KEY, prefsCache!);
+  };
+
+  if (prefsWriteTimer) clearTimeout(prefsWriteTimer);
+  if (flush) {
+    persist();
+  } else {
+    prefsWriteTimer = setTimeout(persist, PERSIST_MS);
+  }
+  if (emit) emitStore();
 }
 
 export function getProfileSnapshot(): UserProfile {
@@ -59,8 +82,24 @@ export function loadProfile(): UserProfile {
   return getProfileSnapshot();
 }
 
-export function saveProfile(profile: UserProfile): void {
+export function saveProfile(
+  profile: UserProfile,
+  opts?: { emit?: boolean; flush?: boolean },
+): void {
   profileCache = profile;
-  writeJson(PROFILE_KEY, profile);
-  emitStore();
+  const emit = opts?.emit !== false;
+  const flush = opts?.flush === true;
+
+  const persist = () => {
+    profileWriteTimer = null;
+    writeJson(PROFILE_KEY, profileCache!);
+  };
+
+  if (profileWriteTimer) clearTimeout(profileWriteTimer);
+  if (flush) {
+    persist();
+  } else {
+    profileWriteTimer = setTimeout(persist, PERSIST_MS);
+  }
+  if (emit) emitStore();
 }

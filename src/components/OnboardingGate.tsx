@@ -2,15 +2,22 @@
 
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { Capacitor } from "@capacitor/core";
 import { useApp } from "@/components/providers/app-provider";
 import { BigButton } from "@/components/BigButton";
-import { resolveAppRoute } from "@/lib/onboarding/decide-route";
+import {
+  isLanguagePath,
+  isOnboardingEntryPath,
+  resolveAppRoute,
+  type FlowFloor,
+} from "@/lib/onboarding/decide-route";
 import { getOnboardingSnapshot } from "@/lib/storage/onboarding";
 import { subscribeStore } from "@/lib/storage/store-events";
 
 /**
- * ONE authoritative redirect strategy for Language → Auth → Setup → Home.
- * No other screen should independently invent onboarding redirects.
+ * Forward-only onboarding lock.
+ * Android/system Back cannot return to Language/Welcome/earlier setup
+ * unless the user taps an explicit button (e.g. Change language).
  */
 export function OnboardingGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -32,8 +39,8 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
       setupWizardComplete: state.setupWizardComplete,
       sessionSetupCompleted: Boolean(sessionUser?.setupCompleted),
       setupStep: state.setupStep || "contacts",
+      flowFloor: (state.flowFloor || "language") as FlowFloor,
     });
-    // onboardingTick forces recompute after local onboarding writes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, authStatus, sessionUser, onboardingTick]);
 
@@ -43,21 +50,71 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!decision.redirect) return;
-    // Prefer hard navigation for onboarding hops to avoid soft-nav loops.
-    if (
-      decision.redirect === "/" ||
-      decision.redirect === "/auth" ||
-      decision.redirect === "/home"
-    ) {
-      if (window.location.pathname !== decision.redirect) {
-        window.location.replace(decision.redirect);
-      }
-      return;
-    }
+    if (window.location.pathname === decision.redirect) return;
+    // Soft client nav — avoid full WebView reload (was the biggest hop lag).
     router.replace(decision.redirect);
   }, [decision.redirect, router]);
 
-  if (pathname === "/install" || pathname.startsWith("/install/")) {
+  // Block hardware / gesture Back on onboarding screens (forward-only).
+  // Do NOT re-run on store ticks — pushState mid-session fights WebView scroll.
+  useEffect(() => {
+    const state = getOnboardingSnapshot();
+    const floor = state.flowFloor || "language";
+    const onLockedScreen =
+      isLanguagePath(pathname) || isOnboardingEntryPath(pathname);
+    const lockBack =
+      onLockedScreen &&
+      (floor === "auth" ||
+        floor === "setup" ||
+        floor === "done" ||
+        (state.languageChosen && isLanguagePath(pathname)));
+
+    if (!lockBack) return;
+
+    function blockPopState() {
+      window.history.pushState(null, "", window.location.href);
+      const latest = getOnboardingSnapshot();
+      const next = resolveAppRoute({
+        pathname: window.location.pathname,
+        authStatus,
+        languageChosen: latest.languageChosen,
+        setupWizardComplete: latest.setupWizardComplete,
+        sessionSetupCompleted: Boolean(sessionUser?.setupCompleted),
+        setupStep: latest.setupStep || "contacts",
+        flowFloor: (latest.flowFloor || "language") as FlowFloor,
+      });
+      if (next.redirect && next.redirect !== window.location.pathname) {
+        router.replace(next.redirect);
+      }
+    }
+
+    window.history.pushState(null, "", window.location.href);
+    window.addEventListener("popstate", blockPopState);
+
+    let removeBack: (() => void) | undefined;
+    if (Capacitor.isNativePlatform()) {
+      void import("@capacitor/app").then(({ App }) => {
+        const sub = App.addListener("backButton", () => {
+          // Swallow back — forward-only unless a UI button unlocks.
+        });
+        removeBack = () => {
+          void sub.then((h) => h.remove());
+        };
+      });
+    }
+
+    return () => {
+      window.removeEventListener("popstate", blockPopState);
+      removeBack?.();
+    };
+  }, [pathname, authStatus, sessionUser, router]);
+
+  if (
+    pathname === "/install" ||
+    pathname.startsWith("/install/") ||
+    pathname === "/inbox" ||
+    pathname.startsWith("/inbox/")
+  ) {
     return <>{children}</>;
   }
 
@@ -67,7 +124,6 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
         <p className="text-2xl font-bold text-[#0B1F3A]">
           {strings.authErrorGeneric}
         </p>
-        <p className="text-lg text-[#0B1F3A]/80">{strings.loading}</p>
         <BigButton tone="primary" onClick={() => window.location.reload()}>
           OK
         </BigButton>

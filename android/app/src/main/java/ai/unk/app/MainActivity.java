@@ -11,8 +11,10 @@ import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.WebViewListener;
 
 /**
- * Capacitor shell tuned for smoother WebView scrolling on phones like S25.
- * Also auto-retries the remote app URL when a load fails.
+ * Capacitor WebView shell.
+ *
+ * Critical: do NOT auto-reload on HTTP errors. API 401/404/5xx used to call
+ * loadUrl(server) and wipe in-progress login / scroll / auth state.
  */
 public class MainActivity extends BridgeActivity {
   private final Handler handler = new Handler(Looper.getMainLooper());
@@ -35,53 +37,65 @@ public class MainActivity extends BridgeActivity {
         public void onPageLoaded(WebView webView) {
           retryAttempt = 0;
           reloadPending = false;
+          lockZoomAndScale(webView);
           tuneWebView(webView);
         }
 
         @Override
         public void onReceivedError(WebView webView) {
+          // Main-document network failure only — offline.html also retries.
           scheduleAutoReload();
         }
 
-        @Override
-        public void onReceivedHttpError(WebView webView) {
-          scheduleAutoReload();
-        }
+        // Intentionally no onReceivedHttpError reload.
+        // Subresource/API HTTP errors must not recreate the app.
       }
     );
   }
 
-  /**
-   * WebView (Chromium) draws our Next.js UI — these settings cut scroll jank
-   * more than XML ConstraintLayout tips, which don't apply to this architecture.
-   */
+  private void lockZoomAndScale(WebView webView) {
+    if (webView == null) {
+      return;
+    }
+    WebSettings settings = webView.getSettings();
+    settings.setSupportZoom(false);
+    settings.setBuiltInZoomControls(false);
+    settings.setDisplayZoomControls(false);
+    settings.setLoadWithOverviewMode(false);
+    settings.setUseWideViewPort(true);
+    settings.setTextZoom(100);
+    webView.setInitialScale(100);
+  }
+
   private void tuneWebView(WebView webView) {
-    if (webView == null || webViewTuned) {
+    if (webView == null) {
+      return;
+    }
+
+    lockZoomAndScale(webView);
+
+    // Suppress Chrome/WebView “Enable autofill on this page” chrome.
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      webView.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS);
+    }
+
+    if (webViewTuned) {
       return;
     }
     webViewTuned = true;
 
     webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
-    webView.setNestedScrollingEnabled(true);
-    webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+    webView.setNestedScrollingEnabled(false);
+    webView.setLayerType(View.LAYER_TYPE_NONE, null);
     webView.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
 
     WebSettings settings = webView.getSettings();
     settings.setDomStorageEnabled(true);
     settings.setDatabaseEnabled(true);
-    settings.setLoadWithOverviewMode(true);
-    settings.setUseWideViewPort(true);
     settings.setMediaPlaybackRequiresUserGesture(true);
     settings.setGeolocationEnabled(false);
-    // Prefer cache for repeat visits to the remote Vercel shell.
     settings.setCacheMode(WebSettings.LOAD_DEFAULT);
-
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-      settings.setOffscreenPreRaster(true);
-    }
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true);
-    }
+    settings.setSaveFormData(false);
   }
 
   private void scheduleAutoReload() {

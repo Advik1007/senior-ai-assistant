@@ -36,12 +36,12 @@ export default function SetupRoutinePage() {
     if (!parsed?.length) return;
     replaceRoutines(parsed);
     markSetupStep("medicines");
-    router.push("/setup/medicines");
+    router.replace("/setup/medicines");
   }
 
   function skipRoutine() {
     markSetupStep("medicines");
-    router.push("/setup/medicines");
+    router.replace("/setup/medicines");
   }
 
   return (

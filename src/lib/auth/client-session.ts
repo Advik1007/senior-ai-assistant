@@ -143,7 +143,7 @@ export async function fetchSessionUserResilient(): Promise<{
 }> {
   let sawUnauthorized = false;
   let sawError = false;
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
     const result = await fetchSessionResult();
     if (result.status === "ok") {
       return { user: result.user, unauthorized: false, error: false };
@@ -153,7 +153,9 @@ export async function fetchSessionUserResilient(): Promise<{
       break;
     }
     sawError = true;
-    await new Promise((r) => setTimeout(r, 350 * (attempt + 1)));
+    if (attempt === 0) {
+      await new Promise((r) => setTimeout(r, 200));
+    }
   }
   return {
     user: null,

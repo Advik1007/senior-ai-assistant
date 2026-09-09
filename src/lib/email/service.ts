@@ -133,6 +133,7 @@ export function sendPasswordResetEmail(input: {
 export function sendContactEmail(input: {
   name: string;
   email: string;
+  phone?: string;
   message: string;
 }) {
   const recipient = process.env.CONTACT_EMAIL;
@@ -146,6 +147,7 @@ export function sendContactEmail(input: {
     template: contactEmail({
       name: input.name.trim(),
       email: requireEmail(input.email, "Email"),
+      phone: (input.phone ?? "").trim(),
       message: input.message.trim(),
     }),
   });

@@ -155,22 +155,27 @@ html[data-a11y="on"] a {
   }
 }
 
-/* UNK scroll / paint smoothness for Android WebView */
+/* Single document scroll root — nested overflow:hidden + inner overflow-y-auto
+   causes Android WebView rubber-band then snap-back mid-gesture. */
 html {
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
   scroll-behavior: auto;
   overscroll-behavior-y: none;
   -webkit-text-size-adjust: 100%;
 }
 
 body {
+  min-height: 100%;
+  overflow-x: hidden;
   overscroll-behavior-y: none;
-  -webkit-overflow-scrolling: touch;
+  /* pan + tap only — blocks double-tap zoom; pinch blocked via WebView + viewport */
+  touch-action: manipulation;
 }
 
-main,
 [data-scroll-root] {
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
+  overscroll-behavior-y: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

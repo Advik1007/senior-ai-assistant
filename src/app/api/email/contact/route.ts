@@ -4,6 +4,7 @@ import {
   EmailDeliveryError,
   sendContactEmail,
 } from "@/lib/email/service";
+import { saveSupportMessage } from "@/lib/db/support-messages";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const WINDOW_MS = 10 * 60 * 1000;
@@ -41,17 +42,18 @@ export async function POST(request: Request) {
     const body = (await request.json()) as {
       name?: unknown;
       email?: unknown;
+      phone?: unknown;
       message?: unknown;
       website?: unknown;
     };
 
-    // Quietly accept bot submissions to avoid teaching bots around the trap.
     if (typeof body.website === "string" && body.website.trim()) {
       return NextResponse.json({ ok: true });
     }
 
     const name = typeof body.name === "string" ? body.name.trim() : "";
     const email = typeof body.email === "string" ? body.email.trim() : "";
+    const phone = typeof body.phone === "string" ? body.phone.trim() : "";
     const message =
       typeof body.message === "string" ? body.message.trim() : "";
 
@@ -67,6 +69,12 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+    if (phone.length > 40) {
+      return NextResponse.json(
+        { message: "Please enter a valid phone number." },
+        { status: 400 },
+      );
+    }
     if (message.length < 10 || message.length > 5000) {
       return NextResponse.json(
         { message: "Your message must be between 10 and 5,000 characters." },
@@ -74,8 +82,27 @@ export async function POST(request: Request) {
       );
     }
 
-    await sendContactEmail({ name, email, message });
-    return NextResponse.json({ ok: true });
+    // Always persist for the inbox page (email notify is best-effort).
+    await saveSupportMessage({ name, email, phone, message });
+
+    try {
+      await sendContactEmail({ name, email, phone, message });
+    } catch (error) {
+      if (error instanceof EmailConfigurationError) {
+        // Saved to inbox even if CONTACT_EMAIL / Resend is not set.
+        return NextResponse.json({ ok: true, emailed: false });
+      }
+      if (error instanceof EmailDeliveryError) {
+        return NextResponse.json({
+          ok: true,
+          emailed: false,
+          message: "Saved to inbox; email notify failed.",
+        });
+      }
+      throw error;
+    }
+
+    return NextResponse.json({ ok: true, emailed: true });
   } catch (error) {
     if (error instanceof SyntaxError) {
       return NextResponse.json(
@@ -83,19 +110,9 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    if (error instanceof EmailConfigurationError) {
-      return NextResponse.json(
-        { message: "Email is not configured yet." },
-        { status: 503 },
-      );
-    }
-    if (error instanceof EmailDeliveryError) {
-      return NextResponse.json({ message: error.message }, { status: 502 });
-    }
     return NextResponse.json(
-      { message: "The message could not be sent." },
+      { message: "The message could not be saved." },
       { status: 500 },
     );
   }
 }
-

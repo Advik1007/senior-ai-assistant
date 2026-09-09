@@ -49,6 +49,16 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [memoryOn, setMemoryOn] = useState(true);
   const [memories, setMemories] = useState<string[]>([]);
+  // Local drafts — avoid emitStore/full-tree re-render on every keystroke.
+  const [draftName, setDraftName] = useState(profile.displayName);
+  const [draftPhone, setDraftPhone] = useState(profile.phone);
+  const [draftEmail, setDraftEmail] = useState(profile.email);
+
+  useEffect(() => {
+    setDraftName(profile.displayName);
+    setDraftPhone(profile.phone);
+    setDraftEmail(profile.email);
+  }, [profile.displayName, profile.phone, profile.email]);
 
   useEffect(() => {
     setMemoryOn(isMemoryEnabled());
@@ -59,7 +69,16 @@ export default function SettingsPage() {
     setContacts(contacts.map((c) => (c.id === id ? { ...c, ...patch } : c)));
   }
 
+  function commitProfile(patch: Partial<typeof profile>) {
+    setProfile({ ...profile, ...patch });
+  }
+
   function saveAll() {
+    commitProfile({
+      displayName: draftName,
+      phone: draftPhone,
+      email: draftEmail,
+    });
     setSaved(true);
     window.setTimeout(() => setSaved(false), 2000);
   }
@@ -73,8 +92,9 @@ export default function SettingsPage() {
         </Label>
         <Input
           id="displayName"
-          value={profile.displayName}
-          onChange={(e) => setProfile({ ...profile, displayName: e.target.value })}
+          value={draftName}
+          onChange={(e) => setDraftName(e.target.value)}
+          onBlur={() => commitProfile({ displayName: draftName })}
           className="mt-1 h-14 rounded-xl border-2 text-xl md:text-xl"
         />
         <Label htmlFor="userPhone" className="mt-4 text-lg">
@@ -85,8 +105,9 @@ export default function SettingsPage() {
           type="tel"
           inputMode="tel"
           placeholder="+91"
-          value={profile.phone}
-          onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+          value={draftPhone}
+          onChange={(e) => setDraftPhone(e.target.value)}
+          onBlur={() => commitProfile({ phone: draftPhone })}
           className="mt-1 h-14 rounded-xl border-2 text-xl md:text-xl"
         />
         <Label htmlFor="email" className="mt-4 text-lg">
@@ -95,8 +116,9 @@ export default function SettingsPage() {
         <Input
           id="email"
           type="email"
-          value={profile.email}
-          onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+          value={draftEmail}
+          onChange={(e) => setDraftEmail(e.target.value)}
+          onBlur={() => commitProfile({ email: draftEmail })}
           className="mt-1 h-14 rounded-xl border-2 text-xl md:text-xl"
         />
       </section>

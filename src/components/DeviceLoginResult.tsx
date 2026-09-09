@@ -1,6 +1,11 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Capacitor } from "@capacitor/core";
 import type { AppLanguage } from "@/lib/languages";
 import { languageByCode } from "@/lib/languages";
+import { toAndroidIntentUrl, toAppDeepLink } from "@/lib/deep-link";
 import { deviceLoginCopy } from "@/lib/email/device-login-i18n";
 
 export function DeviceLoginResult({
@@ -17,6 +22,7 @@ export function DeviceLoginResult({
   const copy = deviceLoginCopy(lang);
   const meta = languageByCode(lang);
   const dir = meta.rtl ? "rtl" : "ltr";
+  const [inApp, setInApp] = useState(false);
 
   const heading =
     variant === "approve"
@@ -43,7 +49,30 @@ export function DeviceLoginResult({
         ? copy.reviewSecurityButton
         : copy.continueButton;
 
-  const buttonHref = variant === "deny" ? "/settings" : "/home";
+  const buttonPath = variant === "deny" ? "/settings" : "/home";
+
+  useEffect(() => {
+    setInApp(Capacitor.isNativePlatform());
+  }, []);
+
+  // After “Yes, it was me”, open the installed app instead of staying in the browser.
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) return;
+    if (variant !== "approve") return;
+    const httpsUrl = `${window.location.origin}${buttonPath}`;
+    const target = /Android/i.test(navigator.userAgent)
+      ? toAndroidIntentUrl(httpsUrl, buttonPath.slice(1))
+      : toAppDeepLink(buttonPath);
+    window.location.href = target;
+  }, [variant, buttonPath]);
+
+  const openAppHref =
+    typeof window !== "undefined"
+      ? toAndroidIntentUrl(
+          `${window.location.origin}${buttonPath}`,
+          buttonPath.slice(1),
+        )
+      : toAppDeepLink(buttonPath);
 
   return (
     <div
@@ -66,22 +95,28 @@ export function DeviceLoginResult({
         {subtext ? (
           <p className="mt-3 text-lg text-[#29445e]">{subtext}</p>
         ) : null}
-        {variant === "error" || variant === "used" ? null : (
-          <Link
-            href={buttonHref}
+        {!inApp ? (
+          <a
+            href={openAppHref}
             className="mt-8 inline-flex min-h-16 w-full items-center justify-center rounded-2xl bg-[#0B4F8A] px-6 text-xl font-bold text-white"
           >
             {buttonLabel}
-          </Link>
-        )}
-        {variant === "error" || variant === "used" ? (
+          </a>
+        ) : variant === "error" || variant === "used" ? (
           <Link
             href="/home"
             className="mt-8 inline-flex min-h-16 w-full items-center justify-center rounded-2xl border-4 border-[#0B1F3A] bg-white px-6 text-xl font-bold text-[#0B1F3A]"
           >
             {copy.continueButton}
           </Link>
-        ) : null}
+        ) : (
+          <Link
+            href={buttonPath}
+            className="mt-8 inline-flex min-h-16 w-full items-center justify-center rounded-2xl bg-[#0B4F8A] px-6 text-xl font-bold text-white"
+          >
+            {buttonLabel}
+          </Link>
+        )}
       </div>
     </div>
   );

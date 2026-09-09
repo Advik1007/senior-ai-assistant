@@ -52,11 +52,15 @@ const config: CapacitorConfig = {
   },
   android: {
     allowMixedContent: true,
+    // Explicit: accidental pinch/double-tap must not scale the UI.
+    zoomEnabled: false,
   },
+  zoomEnabled: false,
   plugins: {
     SplashScreen: {
       launchAutoHide: true,
-      launchShowDuration: 1200,
+      // Short timer; JS also hides on first paint (see SplashReady).
+      launchShowDuration: 400,
       backgroundColor: "#0B4F8A",
       showSpinner: false,
     },

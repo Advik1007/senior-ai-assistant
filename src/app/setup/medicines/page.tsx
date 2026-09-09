@@ -38,7 +38,7 @@ export default function SetupMedicinesPage() {
 
   function goComplete() {
     markSetupStep("complete");
-    router.push("/setup/complete");
+    router.replace("/setup/complete");
   }
 
   function understand() {

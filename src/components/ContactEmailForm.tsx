@@ -18,6 +18,7 @@ export function ContactEmailForm() {
   const isHindi = prefs.language === "hi";
   const [name, setName] = useState(profile.displayName);
   const [email, setEmail] = useState(profile.email);
+  const [phone, setPhone] = useState(profile.phone);
   const [message, setMessage] = useState("");
   const [website, setWebsite] = useState("");
   const [status, setStatus] = useState<Status>({ state: "idle" });
@@ -30,7 +31,7 @@ export function ContactEmailForm() {
       const response = await fetch("/api/email/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, message, website }),
+        body: JSON.stringify({ name, email, phone, message, website }),
       });
       const result = (await response.json()) as { message?: string };
 
@@ -105,8 +106,23 @@ export function ContactEmailForm() {
           />
         </div>
         <div>
+          <Label htmlFor="contact-phone" className="text-lg font-bold">
+            {isHindi ? "फोन नंबर" : "Phone number"}
+          </Label>
+          <Input
+            id="contact-phone"
+            type="tel"
+            inputMode="tel"
+            maxLength={40}
+            value={phone}
+            onChange={(event) => setPhone(event.target.value)}
+            className="mt-2 h-14 rounded-xl border-2 text-lg"
+            placeholder="+91…"
+          />
+        </div>
+        <div>
           <Label htmlFor="contact-message" className="text-lg font-bold">
-            {isHindi ? "संदेश" : "Message"}
+            {isHindi ? "समस्या / संदेश" : "Issue / message"}
           </Label>
           <Textarea
             id="contact-message"
@@ -155,4 +171,3 @@ export function ContactEmailForm() {
     </section>
   );
 }
-

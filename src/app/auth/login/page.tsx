@@ -17,7 +17,12 @@ import {
   authErrorMessage,
   type AuthUser,
 } from "@/lib/auth/client";
-import { clearLanguageChoice, nextPathAfterVerify } from "@/lib/storage/onboarding";
+import {
+  clearLanguageChoice,
+  markEnteredSetupFlow,
+  markSetupComplete,
+  nextPathAfterVerify,
+} from "@/lib/storage/onboarding";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -95,8 +100,14 @@ export default function LoginPage() {
       const dest = data.user.setupCompleted
         ? "/home"
         : nextPathAfterVerify();
-      // Hard navigate so Android WebView reliably picks up the session cookie.
-      window.location.assign(dest);
+      if (data.user.setupCompleted) {
+        markSetupComplete();
+      } else {
+        // Must raise floor to setup — auth-only floor + anonymous race bounced to /auth.
+        markEnteredSetupFlow();
+      }
+      // Soft navigate — hard location.replace remounted AppProvider and raced /me → Welcome.
+      router.replace(dest);
     } catch {
       setError(strings.authErrorGeneric);
     } finally {
@@ -129,7 +140,7 @@ export default function LoginPage() {
         return;
       }
       setProfile({ ...profile, email: trimmed });
-      router.push(`/auth/check-email?email=${encodeURIComponent(trimmed)}`);
+      router.replace(`/auth/check-email?email=${encodeURIComponent(trimmed)}`);
     } catch {
       setError(strings.authErrorGeneric);
     } finally {
@@ -151,7 +162,7 @@ export default function LoginPage() {
           <OnboardingLink
             onClick={() => {
               clearLanguageChoice();
-              router.push("/");
+              router.replace("/");
             }}
           >
             {strings.authChangeLanguage}

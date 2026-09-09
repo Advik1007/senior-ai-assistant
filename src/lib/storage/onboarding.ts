@@ -2,12 +2,13 @@ import { readJson, writeJson } from "@/lib/storage/local-store";
 import { emitStore } from "@/lib/storage/store-events";
 
 const PERSIST_KEY = "unk.onboarding";
-/** Backup cookie so Language↔Welcome cannot loop if localStorage is flaky. */
 const LANG_COOKIE = "unk_lang_chosen";
-/** @deprecated migrated to localStorage field languageChosen */
 const LEGACY_SESSION_LANGUAGE_KEY = "unk.session.languageChosen";
 
 export type SetupStep = "contacts" | "routine" | "medicines" | "complete";
+
+/** How far the user has progressed — never auto-go behind this. */
+export type FlowFloor = "language" | "auth" | "setup" | "done";
 
 export type OnboardingState = {
   languageChosen: boolean;
@@ -17,6 +18,8 @@ export type OnboardingState = {
   /** True only after finishing /setup/complete (party popper screen). */
   setupWizardComplete: boolean;
   setupStep: SetupStep;
+  /** Lowest stage the user has reached; back navigation cannot go below this. */
+  flowFloor: FlowFloor;
 };
 
 const DEFAULT: OnboardingState = {
@@ -25,6 +28,14 @@ const DEFAULT: OnboardingState = {
   setupComplete: false,
   setupWizardComplete: false,
   setupStep: "contacts",
+  flowFloor: "language",
+};
+
+const FLOOR_RANK: Record<FlowFloor, number> = {
+  language: 0,
+  auth: 1,
+  setup: 2,
+  done: 3,
 };
 
 let cache: OnboardingState | null = null;
@@ -36,6 +47,7 @@ type PersistedOnboarding = Partial<{
   setupComplete: boolean;
   setupWizardComplete: boolean;
   setupStep: SetupStep;
+  flowFloor: FlowFloor;
 }>;
 
 function clearLegacyLanguageFlag(): void {
@@ -73,32 +85,47 @@ function readPersisted(): PersistedOnboarding {
   return readJson<PersistedOnboarding>(PERSIST_KEY, {});
 }
 
+function normalizeFloor(
+  floor: FlowFloor | undefined,
+  languageChosen: boolean,
+  setupWizardComplete: boolean,
+): FlowFloor {
+  if (setupWizardComplete) return "done";
+  if (floor === "language" || floor === "auth" || floor === "setup" || floor === "done") {
+    if (languageChosen && FLOOR_RANK[floor] < FLOOR_RANK.auth) return "auth";
+    return floor;
+  }
+  if (languageChosen) return "auth";
+  return "language";
+}
+
 function buildState(persisted: PersistedOnboarding): OnboardingState {
   const fromStorage = !!persisted.languageChosen;
   const fromCookie = readLangCookie();
   const languageChosen = fromStorage || fromCookie;
 
-  // Heal storage if cookie survived but localStorage was cleared.
   if (languageChosen && !fromStorage) {
     try {
-      writeJson(PERSIST_KEY, {
-        ...persisted,
-        languageChosen: true,
-      });
+      writeJson(PERSIST_KEY, { ...persisted, languageChosen: true });
     } catch {
       // ignore
     }
   }
-  if (languageChosen && !fromCookie) {
-    writeLangCookie(true);
-  }
+  if (languageChosen && !fromCookie) writeLangCookie(true);
+
+  const setupWizardComplete = !!persisted.setupWizardComplete;
 
   return {
     languageChosen,
     emailVerified: !!persisted.emailVerified,
     setupComplete: !!persisted.setupComplete,
-    setupWizardComplete: !!persisted.setupWizardComplete,
+    setupWizardComplete,
     setupStep: persisted.setupStep ?? "contacts",
+    flowFloor: normalizeFloor(
+      persisted.flowFloor,
+      languageChosen,
+      setupWizardComplete,
+    ),
   };
 }
 
@@ -111,7 +138,6 @@ export function getOnboardingSnapshot(): OnboardingState {
   return cache;
 }
 
-/** Force re-read from disk/cookie (after external writes). */
 export function refreshOnboardingSnapshot(): OnboardingState {
   cache = null;
   return getOnboardingSnapshot();
@@ -126,22 +152,37 @@ export function saveOnboarding(state: OnboardingState): void {
     setupComplete: state.setupComplete,
     setupWizardComplete: state.setupWizardComplete,
     setupStep: state.setupStep,
+    flowFloor: state.flowFloor,
   });
   emitStore();
-  // Android app: mirror into native Preferences (async, non-blocking).
   void import("@/lib/storage/native-onboarding")
     .then(({ persistOnboardingToNative }) => persistOnboardingToNative(state))
     .catch(() => undefined);
 }
 
-/** Only call from the language selection screen after the user taps a language. */
-export function markLanguageChosen(): void {
-  const current = getOnboardingSnapshot();
-  saveOnboarding({ ...current, languageChosen: true });
+function raiseFloor(state: OnboardingState, floor: FlowFloor): OnboardingState {
+  if (FLOOR_RANK[floor] <= FLOOR_RANK[state.flowFloor]) return state;
+  return { ...state, flowFloor: floor };
 }
 
+/** Language picked — lock past Language unless Change language is pressed. */
+export function markLanguageChosen(): void {
+  const current = getOnboardingSnapshot();
+  saveOnboarding(
+    raiseFloor({ ...current, languageChosen: true }, "auth"),
+  );
+}
+
+/**
+ * ONLY call from an explicit "Change language" button.
+ * This is the sole intentional unlock back to Language Selection.
+ */
 export function clearLanguageChoice(): void {
-  saveOnboarding({ ...getOnboardingSnapshot(), languageChosen: false });
+  saveOnboarding({
+    ...getOnboardingSnapshot(),
+    languageChosen: false,
+    flowFloor: "language",
+  });
 }
 
 export function markEmailVerified(): void {
@@ -155,13 +196,24 @@ export function markEmailVerified(): void {
   });
 }
 
+/** Advance setup — never moves the floor backward. */
 export function markSetupStep(step: SetupStep): void {
-  saveOnboarding({
-    ...getOnboardingSnapshot(),
-    setupStep: step,
-    setupComplete: false,
-    setupWizardComplete: false,
-  });
+  const current = getOnboardingSnapshot();
+  const steps: SetupStep[] = ["contacts", "routine", "medicines", "complete"];
+  const nextIndex = steps.indexOf(step);
+  const curIndex = steps.indexOf(current.setupStep);
+  const setupStep = nextIndex >= curIndex ? step : current.setupStep;
+  saveOnboarding(
+    raiseFloor(
+      {
+        ...current,
+        setupStep,
+        setupComplete: false,
+        setupWizardComplete: false,
+      },
+      "setup",
+    ),
+  );
 }
 
 export function markSetupComplete(): void {
@@ -170,12 +222,27 @@ export function markSetupComplete(): void {
     setupComplete: true,
     setupWizardComplete: true,
     setupStep: "complete",
+    flowFloor: "done",
   });
 }
 
-/** @deprecated Old phone/contacts screen — does not finish the setup wizard. */
+/** Call after successful login/signup — lock into setup (or done). */
+export function markEnteredAuthFlow(): void {
+  const current = getOnboardingSnapshot();
+  if (current.setupWizardComplete) {
+    saveOnboarding({ ...current, flowFloor: "done", languageChosen: true });
+    return;
+  }
+  saveOnboarding(raiseFloor({ ...current, languageChosen: true }, "auth"));
+}
+
+export function markEnteredSetupFlow(): void {
+  const current = getOnboardingSnapshot();
+  saveOnboarding(raiseFloor({ ...current, languageChosen: true }, "setup"));
+}
+
 export function markCallsSetup(): void {
-  // Intentionally no-op.
+  // no-op
 }
 
 export function setupPathForStep(step: SetupStep): string {
@@ -202,7 +269,6 @@ export function isOnboardingFinished(
   return state.languageChosen && state.setupWizardComplete;
 }
 
-/** Clears auth flags but keeps language choice and setup progress. */
 export function clearAuthenticatedOnboarding(): void {
   const current = getOnboardingSnapshot();
   saveOnboarding({
@@ -217,6 +283,7 @@ export function restartSetupWizard(): void {
     setupComplete: false,
     setupWizardComplete: false,
     setupStep: "contacts",
+    flowFloor: "setup",
   });
 }
 
@@ -232,4 +299,8 @@ export function resetOnboarding(): void {
   }
   writeLangCookie(false);
   saveOnboarding({ ...DEFAULT });
+}
+
+export function flowFloorRank(floor: FlowFloor): number {
+  return FLOOR_RANK[floor];
 }

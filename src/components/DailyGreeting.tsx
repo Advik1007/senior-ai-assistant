@@ -12,7 +12,7 @@ import { getOnboardingSnapshot, isOnboardingFinished } from "@/lib/storage/onboa
 import { loadRoutines } from "@/lib/storage/routines";
 import { speakText } from "@/lib/speech";
 
-/** Speaks today's routine once per day when the user opens Home. */
+/** Speaks today's routine once per day — deferred until after first paint. */
 export function DailyGreeting() {
   const { prefs, profile, strings } = useApp();
   const spokeRef = useRef(false);
@@ -39,7 +39,28 @@ export function DailyGreeting() {
     );
 
     markGreetedToday();
-    speakText(message, { rate: prefs.voiceSpeed, lang: prefs.language });
+
+    const speak = () => {
+      speakText(message, { rate: prefs.voiceSpeed, lang: prefs.language });
+    };
+
+    // Keep TTS off the first-paint / scroll critical path.
+    const ric = (
+      window as Window & {
+        requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      }
+    ).requestIdleCallback;
+    if (typeof ric === "function") {
+      const id = ric(speak, { timeout: 2500 });
+      return () => {
+        const cancel = (
+          window as Window & { cancelIdleCallback?: (id: number) => void }
+        ).cancelIdleCallback;
+        cancel?.(id);
+      };
+    }
+    const t = window.setTimeout(speak, 1200);
+    return () => window.clearTimeout(t);
   }, [prefs.language, prefs.voiceSpeed, profile.displayName, strings]);
 
   return null;

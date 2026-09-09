@@ -128,18 +128,21 @@ export function passwordResetEmail(
 export function contactEmail(input: {
   name: string;
   email: string;
+  phone?: string;
   message: string;
 }): EmailTemplate {
+  const phone = (input.phone ?? "").trim() || "Not provided";
   return {
     subject: `UNK AI contact message from ${input.name}`,
     html: layout({
       preview: "A new message was submitted through UNK AI.",
       heading: "New contact message",
       body: `<p style="margin:0 0 8px"><strong>From:</strong> ${escapeHtml(input.name)}</p>
-        <p style="margin:0 0 24px"><strong>Email:</strong> ${escapeHtml(input.email)}</p>
+        <p style="margin:0 0 8px"><strong>Email:</strong> ${escapeHtml(input.email)}</p>
+        <p style="margin:0 0 24px"><strong>Phone:</strong> ${escapeHtml(phone)}</p>
         <div style="white-space:pre-wrap;background:#f3f7fb;border-radius:12px;padding:18px">${escapeHtml(input.message)}</div>`,
     }),
-    text: `From: ${input.name}\nEmail: ${input.email}\n\n${input.message}`,
+    text: `From: ${input.name}\nEmail: ${input.email}\nPhone: ${phone}\n\n${input.message}`,
   };
 }
 
