@@ -40,6 +40,11 @@ import {
 } from "@/lib/storage/preferences";
 import { subscribeStore } from "@/lib/storage/store-events";
 import { t } from "@/lib/i18n";
+import {
+  fetchLanguageCatalog,
+  I18N_READY_EVENT,
+  readCachedCatalog,
+} from "@/lib/i18n/client-catalog";
 import type { AppLanguage } from "@/lib/languages";
 import type { AuthStatus } from "@/lib/onboarding/decide-route";
 
@@ -52,6 +57,8 @@ type AppContextValue = {
   setContacts: (next: Contact[]) => void;
   strings: ReturnType<typeof t>;
   lang: AppLanguage;
+  /** True while Gemini is loading a full catalog for the selected language. */
+  i18nLoading: boolean;
   ready: boolean;
   authStatus: AuthStatus;
   sessionUser: SessionUser | null;
@@ -210,7 +217,55 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const lang = prefs.language;
-  const strings = t(lang);
+  const staticStrings = t(lang);
+  const [liveStrings, setLiveStrings] = useState<ReturnType<typeof t> | null>(
+    null,
+  );
+  const [i18nLoading, setI18nLoading] = useState(false);
+
+  // Apply Gemini catalog as soon as language changes — every page reads `strings`.
+  useEffect(() => {
+    let cancelled = false;
+    const cached = readCachedCatalog(lang);
+    if (cached) {
+      setLiveStrings(cached);
+      setI18nLoading(false);
+    } else {
+      setLiveStrings(null);
+      setI18nLoading(lang !== "en");
+    }
+
+    void (async () => {
+      try {
+        const next = await fetchLanguageCatalog(lang);
+        if (cancelled || !next) return;
+        setLiveStrings(next);
+      } catch {
+        /* keep static fallback */
+      } finally {
+        if (!cancelled) setI18nLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [lang]);
+
+  // LanguageSelector / Settings may finish Gemini before prefs settle — apply instantly.
+  useEffect(() => {
+    function onReady(event: Event) {
+      const detail = (event as CustomEvent<{ lang: AppLanguage; strings: ReturnType<typeof t> }>)
+        .detail;
+      if (!detail || detail.lang !== prefs.language) return;
+      setLiveStrings(detail.strings);
+      setI18nLoading(false);
+    }
+    window.addEventListener(I18N_READY_EVENT, onReady);
+    return () => window.removeEventListener(I18N_READY_EVENT, onReady);
+  }, [prefs.language]);
+
+  const strings = liveStrings ?? staticStrings;
   const ready = authStatus !== "loading";
 
   const value = useMemo(
@@ -223,6 +278,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setContacts,
       strings,
       lang,
+      i18nLoading,
       ready,
       authStatus,
       sessionUser,
@@ -238,6 +294,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setContacts,
       strings,
       lang,
+      i18nLoading,
       ready,
       authStatus,
       sessionUser,

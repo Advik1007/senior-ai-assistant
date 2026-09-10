@@ -16,7 +16,8 @@ import { useApp } from "@/components/providers/app-provider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { LANGUAGES } from "@/lib/languages";
+import { LANGUAGES, type AppLanguage } from "@/lib/languages";
+import { ensureLanguageCatalog } from "@/lib/i18n/client-catalog";
 import { getBookingHistorySnapshot } from "@/lib/storage/bookings";
 import { subscribeStore } from "@/lib/storage/store-events";
 import {
@@ -49,6 +50,9 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [memoryOn, setMemoryOn] = useState(true);
   const [memories, setMemories] = useState<string[]>([]);
+  const [translatingLang, setTranslatingLang] = useState<AppLanguage | null>(
+    null,
+  );
   // Local drafts — avoid emitStore/full-tree re-render on every keystroke.
   const [draftName, setDraftName] = useState(profile.displayName);
   const [draftPhone, setDraftPhone] = useState(profile.phone);
@@ -146,26 +150,43 @@ export default function SettingsPage() {
 
       <section className="rounded-2xl border border-[#0B4F8A]/20 bg-white p-4 high-contrast:border-white high-contrast:bg-black">
         <h2 className="mb-4 text-2xl font-extrabold">{strings.language}</h2>
+        {translatingLang ? (
+          <p className="mb-3 text-base font-semibold text-[#0B4F8A]" role="status">
+            Translating every screen with UNK…
+          </p>
+        ) : null}
         <div className="flex flex-col gap-3">
           {LANGUAGES.map((lang) => (
             <BigButton
               key={lang.code}
               tone={prefs.language === lang.code ? "primary" : "muted"}
+              disabled={Boolean(translatingLang)}
               onClick={() => {
-                setPrefs({ ...prefs, language: lang.code });
-                setProfile({ ...profile, preferredLanguage: lang.code });
-                if (sessionUser) {
-                  void import("@/lib/auth/client-session").then(
-                    ({ persistAccountLanguage }) => {
-                      void persistAccountLanguage(lang.code).then((user) => {
-                        if (user) completeLogin(user);
-                      });
-                    },
-                  );
-                }
+                void (async () => {
+                  setTranslatingLang(lang.code);
+                  try {
+                    await ensureLanguageCatalog(lang.code);
+                    setPrefs({ ...prefs, language: lang.code });
+                    setProfile({
+                      ...profile,
+                      preferredLanguage: lang.code,
+                    });
+                    if (sessionUser) {
+                      const { persistAccountLanguage } = await import(
+                        "@/lib/auth/client-session"
+                      );
+                      const user = await persistAccountLanguage(lang.code);
+                      if (user) completeLogin(user);
+                    }
+                  } finally {
+                    setTranslatingLang(null);
+                  }
+                })();
               }}
             >
-              {lang.nativeLabel}
+              {translatingLang === lang.code
+                ? `${lang.nativeLabel}…`
+                : lang.nativeLabel}
             </BigButton>
           ))}
         </div>

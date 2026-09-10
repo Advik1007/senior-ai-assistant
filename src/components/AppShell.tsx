@@ -14,7 +14,7 @@ export function AppShell({
   showBack?: boolean;
   children: React.ReactNode;
 }) {
-  const { strings, prefs } = useApp();
+  const { strings, prefs, i18nLoading } = useApp();
 
   return (
     <div
@@ -43,6 +43,14 @@ export function AppShell({
           </h1>
         </div>
       </header>
+      {i18nLoading ? (
+        <p
+          className="mb-2 rounded-xl bg-[#0B4F8A]/10 px-3 py-2 text-sm font-semibold text-[#0B4F8A]"
+          role="status"
+        >
+          Updating language on every screen…
+        </p>
+      ) : null}
       <main className="flex flex-1 flex-col gap-3">{children}</main>
     </div>
   );
