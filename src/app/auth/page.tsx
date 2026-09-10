@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { BigButton } from "@/components/BigButton";
 import {
   OnboardingShell,
@@ -13,7 +12,6 @@ import { clearLanguageChoice } from "@/lib/storage/onboarding";
  * After language: choose Sign in or Create account, then setup wizard → home.
  */
 export default function AuthWelcomePage() {
-  const router = useRouter();
   const { strings, lang } = useApp();
 
   return (
