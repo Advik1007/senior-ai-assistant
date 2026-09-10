@@ -16,6 +16,7 @@ import type { Contact } from "@/lib/db/schema";
 import { hasUsablePhoneNumber, startPhoneCall } from "@/lib/phone";
 import {
   getSpeechRecognition,
+  ensureMicPermission,
   speakText,
   speechLocale,
   stopSpeaking,
@@ -136,6 +137,7 @@ export function VoiceAssistant({
   const [typed, setTyped] = useState("");
   const [pendingCall, setPendingCall] = useState<Contact | null>(null);
   const [voiceSupported, setVoiceSupported] = useState(true);
+  const [micHint, setMicHint] = useState<string | null>(null);
 
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const pendingCallRef = useRef<Contact | null>(null);
@@ -321,32 +323,63 @@ export function VoiceAssistant({
 
   const startListening = useCallback(() => {
     stopSpeaking();
-    // Show red listening state immediately on tap.
+    setMicHint(null);
     setPhase("listening");
-    const rec = getSpeechRecognition();
-    if (!rec) {
-      setVoiceSupported(false);
-      setPhase("idle");
-      return;
-    }
-    recognitionRef.current = rec;
-    rec.lang = speechLocale(prefs.language);
-    rec.interimResults = false;
-    rec.continuous = false;
-    rec.maxAlternatives = 1;
-    rec.onresult = (event) => {
-      const transcript = event.results[0]?.[0]?.transcript ?? "";
-      handleUtteranceRef.current(transcript);
-    };
-    rec.onerror = () => setPhase("idle");
-    rec.onend = () => {
-      setPhase((current) => (current === "listening" ? "idle" : current));
-    };
-    try {
-      rec.start();
-    } catch {
-      setPhase("idle");
-    }
+
+    void (async () => {
+      const permission = await ensureMicPermission();
+      if (permission === "denied") {
+        setVoiceSupported(true);
+        setMicHint(
+          "Microphone permission is blocked. Open phone Settings → Apps → UNK AI → Permissions → Microphone → Allow, then tap again.",
+        );
+        setPhase("idle");
+        return;
+      }
+      if (permission === "unavailable") {
+        setVoiceSupported(false);
+        setPhase("idle");
+        return;
+      }
+
+      const rec = getSpeechRecognition();
+      if (!rec) {
+        setVoiceSupported(false);
+        setPhase("idle");
+        return;
+      }
+      recognitionRef.current = rec;
+      rec.lang = speechLocale(prefs.language);
+      rec.interimResults = false;
+      rec.continuous = false;
+      rec.maxAlternatives = 1;
+      rec.onresult = (event) => {
+        const transcript = event.results[0]?.[0]?.transcript ?? "";
+        handleUtteranceRef.current(transcript);
+      };
+      rec.onerror = (event) => {
+        if (event.error === "not-allowed") {
+          setMicHint(
+            "Microphone permission is blocked. Allow Microphone for UNK AI, then tap again.",
+          );
+        } else if (event.error === "no-speech") {
+          setMicHint("I did not catch that. Tap the mic and speak again.");
+        } else if (event.error === "service-not-allowed") {
+          setMicHint(
+            "Speech recognition is not available on this phone. You can still type below.",
+          );
+        }
+        setPhase("idle");
+      };
+      rec.onend = () => {
+        setPhase((current) => (current === "listening" ? "idle" : current));
+      };
+      try {
+        rec.start();
+      } catch {
+        setPhase("idle");
+      }
+    })();
   }, [prefs.language]);
 
 
@@ -365,7 +398,9 @@ export function VoiceAssistant({
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
-    speak(greeting, true);
+    // Do NOT auto-start the mic after greeting — Android requires a real tap
+    // for RECORD_AUDIO / speech dialog. User taps the gold mic button.
+    speak(greeting, false);
     return () => {
       stopSpeaking();
       stopListening();
@@ -393,6 +428,15 @@ export function VoiceAssistant({
       {!voiceSupported ? (
         <p className="rounded-2xl bg-[#FFF4CC] p-4 text-xl font-semibold text-[#0B1F3A]">
           {strings.voiceUnsupported}
+        </p>
+      ) : null}
+
+      {micHint ? (
+        <p
+          className="rounded-2xl border border-[#C62828]/30 bg-[#FFF5F5] p-4 text-base font-semibold text-[#C62828]"
+          role="status"
+        >
+          {micHint}
         </p>
       ) : null}
 

@@ -24,6 +24,8 @@ export type SpeechRecognitionEventLike = {
   results: ArrayLike<ArrayLike<{ transcript: string }>>;
 };
 
+export type MicPermission = "granted" | "denied" | "unavailable";
+
 function isNativeApp(): boolean {
   if (typeof window === "undefined") return false;
   try {
@@ -61,6 +63,39 @@ function emitResult(
   });
 }
 
+/** Ask for mic access — must run from a user tap on Android/WebView. */
+export async function ensureMicPermission(): Promise<MicPermission> {
+  if (typeof window === "undefined") return "unavailable";
+
+  if (isNativeApp()) {
+    try {
+      const { SpeechRecognition } = await import(
+        "@capgo/capacitor-speech-recognition"
+      );
+      let status = await SpeechRecognition.checkPermissions();
+      if (status.speechRecognition !== "granted") {
+        status = await SpeechRecognition.requestPermissions();
+      }
+      if (status.speechRecognition === "granted") return "granted";
+      return "denied";
+    } catch {
+      return "unavailable";
+    }
+  }
+
+  // Browser: unlock mic (Chrome often needs getUserMedia before SpeechRecognition).
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return createBrowserSpeechRecognition() ? "granted" : "unavailable";
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach((track) => track.stop());
+    return "granted";
+  } catch {
+    return "denied";
+  }
+}
+
 function createNativeSpeechRecognition(): SpeechRecognitionLike {
   let session = 0;
 
@@ -80,7 +115,11 @@ function createNativeSpeechRecognition(): SpeechRecognitionLike {
             "@capgo/capacitor-speech-recognition"
           );
 
-          const permission = await SpeechRecognition.requestPermissions();
+          // Permission must already be granted from a user tap (ensureMicPermission).
+          let permission = await SpeechRecognition.checkPermissions();
+          if (permission.speechRecognition !== "granted") {
+            permission = await SpeechRecognition.requestPermissions();
+          }
           if (permission.speechRecognition !== "granted") {
             if (thisSession !== session) return;
             rec.onerror?.({ error: "not-allowed" });
@@ -96,16 +135,13 @@ function createNativeSpeechRecognition(): SpeechRecognitionLike {
             return;
           }
 
-          const onAndroid = Capacitor.getPlatform() === "android";
-
-          // Samsung / Android WebView: system speech dialog is the reliable path.
-          // Inline recognition often fails silently without Google's dialog UI.
+          // Always use the system speech dialog on Android — most reliable path.
           const result = await SpeechRecognition.start({
             language: rec.lang || "en-US",
             maxResults: Math.max(1, rec.maxAlternatives || 1),
             partialResults: false,
-            popup: onAndroid,
-            prompt: "Speak now",
+            popup: true,
+            prompt: "Speak now — UNK is listening",
           });
 
           if (thisSession !== session) return;
@@ -114,7 +150,6 @@ function createNativeSpeechRecognition(): SpeechRecognitionLike {
           if (transcript) {
             emitResult(rec, transcript);
           } else {
-            // Empty result — user cancelled or silence. Stay quiet, end session.
             rec.onerror?.({ error: "no-speech" });
           }
           rec.onend?.();
@@ -122,16 +157,22 @@ function createNativeSpeechRecognition(): SpeechRecognitionLike {
           if (thisSession !== session) return;
           const message =
             err instanceof Error ? err.message.toLowerCase() : String(err);
-          // User dismissed the system dialog — not a hard failure.
           if (
             message.includes("cancel") ||
             message.includes("aborted") ||
-            message.includes("user")
+            message.includes("user") ||
+            message.includes("result_canceled") ||
+            message === "0"
           ) {
+            // RESULT_CANCELED from system dialog
             rec.onend?.();
             return;
           }
-          rec.onerror?.({ error: "network" });
+          if (message.includes("permission") || message.includes("denied")) {
+            rec.onerror?.({ error: "not-allowed" });
+          } else {
+            rec.onerror?.({ error: "network" });
+          }
           rec.onend?.();
         }
       })();

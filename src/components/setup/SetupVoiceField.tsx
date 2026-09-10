@@ -5,6 +5,7 @@ import { Mic } from "lucide-react";
 import { BigButton } from "@/components/BigButton";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  ensureMicPermission,
   getSpeechRecognition,
   speechLocale,
   stopSpeaking,
@@ -42,31 +43,36 @@ export function SetupVoiceField({
 
   const startListening = useCallback(() => {
     stopSpeaking();
-    // Show red listening state immediately on tap.
     setListening(true);
-    const rec = getSpeechRecognition();
-    if (!rec) {
-      setListening(false);
-      return;
-    }
-    recognitionRef.current = rec;
-    rec.lang = speechLocale(lang);
-    rec.interimResults = false;
-    rec.continuous = false;
-    rec.onresult = (event) => {
-      const transcript = event.results[0]?.[0]?.transcript ?? "";
-      onChange(transcript.trim());
-      setListening(false);
-    };
-    rec.onerror = () => setListening(false);
-    rec.onend = () => setListening(false);
-    try {
-      rec.start();
-    } catch {
-      setListening(false);
-    }
+    void (async () => {
+      const permission = await ensureMicPermission();
+      if (permission !== "granted") {
+        setListening(false);
+        return;
+      }
+      const rec = getSpeechRecognition();
+      if (!rec) {
+        setListening(false);
+        return;
+      }
+      recognitionRef.current = rec;
+      rec.lang = speechLocale(lang);
+      rec.interimResults = false;
+      rec.continuous = false;
+      rec.onresult = (event) => {
+        const transcript = event.results[0]?.[0]?.transcript ?? "";
+        onChange(transcript.trim());
+        setListening(false);
+      };
+      rec.onerror = () => setListening(false);
+      rec.onend = () => setListening(false);
+      try {
+        rec.start();
+      } catch {
+        setListening(false);
+      }
+    })();
   }, [lang, onChange]);
-
 
   return (
     <div className="flex flex-col gap-4">
@@ -74,7 +80,7 @@ export function SetupVoiceField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="min-h-28 rounded-2xl border-2 border-[#0B1F3A]/15 p-4 text-xl"
+        className="min-h-28 rounded-2xl border border-[#0B4F8A]/20 p-4 text-xl"
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
@@ -84,12 +90,7 @@ export function SetupVoiceField({
       />
       <div className="flex flex-col gap-3 sm:flex-row">
         <BigButton
-          tone={listening ? "help" : "primary"}
-          className={
-            listening
-              ? "ring-4 ring-[#FF1744]/50"
-              : "active:bg-[#B00020] active:border-[#8A0018]"
-          }
+          tone={listening ? "help" : "gold"}
           icon={<Mic className="size-7" />}
           onClick={() => (listening ? stopListening() : startListening())}
         >
