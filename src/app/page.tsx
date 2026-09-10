@@ -1,23 +1,60 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Capacitor } from "@capacitor/core";
 import { useRouter } from "next/navigation";
 import { ApkDownloadButton } from "@/components/ApkDownloadButton";
+import { nativeLaunchPath } from "@/lib/onboarding/decide-route";
+import { readCachedSessionUser } from "@/lib/auth/client-session";
+import { getOnboardingSnapshot } from "@/lib/storage/onboarding";
+
+function isNativeAppShell(): boolean {
+  try {
+    if (Capacitor.isNativePlatform()) return true;
+  } catch {
+    // ignore
+  }
+  if (typeof window === "undefined") return false;
+  const win = window as Window & {
+    Capacitor?: { isNativePlatform?: () => boolean };
+    androidBridge?: unknown;
+  };
+  return Boolean(win.androidBridge || win.Capacitor?.isNativePlatform?.());
+}
 
 /**
  * Public UNK AI marketing site — kept light for phones (no slideshow / Ken Burns).
- * Native Android app skips this and continues to /start.
+ * Native Android app skips this and continues into the real app (home / auth / start).
  */
 export default function WebsitePage() {
   const router = useRouter();
+  const [nativeBoot, setNativeBoot] = useState(false);
 
   useEffect(() => {
-    if (Capacitor.isNativePlatform()) {
-      router.replace("/start");
-    }
+    if (!isNativeAppShell()) return;
+    setNativeBoot(true);
+    const state = getOnboardingSnapshot();
+    const cached = readCachedSessionUser();
+    const dest = nativeLaunchPath({
+      authStatus: cached ? "authenticated" : "loading",
+      languageChosen: state.languageChosen,
+      setupWizardComplete: state.setupWizardComplete,
+      sessionSetupCompleted: Boolean(cached?.setupCompleted),
+      setupStep: state.setupStep || "contacts",
+      flowFloor: state.flowFloor || "language",
+    });
+    router.replace(dest);
   }, [router]);
+
+  // Avoid leaving the public marketing homepage on screen inside the APK.
+  if (nativeBoot) {
+    return (
+      <main className="flex min-h-svh items-center justify-center bg-[#0B1F3A] text-lg font-semibold text-white">
+        UNK AI
+      </main>
+    );
+  }
 
   return (
     <main className="site bg-[#F7F4EE] text-[#0B1F3A]">

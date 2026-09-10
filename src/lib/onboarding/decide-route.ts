@@ -97,7 +97,35 @@ export type ResolveRouteInput = {
   sessionSetupCompleted: boolean;
   setupStep: "contacts" | "routine" | "medicines" | "complete";
   flowFloor: FlowFloor;
+  /** Capacitor Android/iOS shell — never show the public marketing site. */
+  nativeApp?: boolean;
 };
+
+/**
+ * Where the native APK should land on cold start (server.url opens `/`).
+ */
+export function nativeLaunchPath(input: {
+  authStatus: AuthStatus;
+  languageChosen: boolean;
+  setupWizardComplete: boolean;
+  sessionSetupCompleted: boolean;
+  setupStep: "contacts" | "routine" | "medicines" | "complete";
+  flowFloor: FlowFloor;
+}): string {
+  const setupDone =
+    input.sessionSetupCompleted || input.setupWizardComplete;
+  if (setupDone) return HOME_PATH;
+  if (input.authStatus === "authenticated") {
+    return setupPathForStep(input.setupStep || "contacts");
+  }
+  if (!input.languageChosen || input.flowFloor === "language") {
+    return LANGUAGE_PATH;
+  }
+  if (input.flowFloor === "setup") {
+    return setupPathForStep(input.setupStep || "contacts");
+  }
+  return AUTH_PATH;
+}
 
 /**
  * Forward-only resolver.
@@ -113,7 +141,25 @@ export function resolveAppRoute(input: ResolveRouteInput): RouteDecision {
     sessionSetupCompleted,
     setupStep,
     flowFloor,
+    nativeApp = false,
   } = input;
+
+  // APK always boots at `/` (Capacitor server.url). Send users into the app,
+  // never leave them on the public marketing homepage after login.
+  if (nativeApp && pathname === "/") {
+    return {
+      allow: false,
+      redirect: nativeLaunchPath({
+        authStatus,
+        languageChosen,
+        setupWizardComplete,
+        sessionSetupCompleted,
+        setupStep,
+        flowFloor,
+      }),
+      sessionError: false,
+    };
+  }
 
   // Public website + inbox — never force into the app onboarding flow.
   if (isMarketingPath(pathname) || isInboxPath(pathname)) {

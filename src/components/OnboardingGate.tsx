@@ -14,6 +14,20 @@ import {
 import { getOnboardingSnapshot } from "@/lib/storage/onboarding";
 import { subscribeStore } from "@/lib/storage/store-events";
 
+function isNativeAppShell(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    if (Capacitor.isNativePlatform()) return true;
+  } catch {
+    // ignore
+  }
+  const win = window as Window & {
+    Capacitor?: { isNativePlatform?: () => boolean };
+    androidBridge?: unknown;
+  };
+  return Boolean(win.androidBridge || win.Capacitor?.isNativePlatform?.());
+}
+
 /**
  * Forward-only onboarding lock.
  * Android/system Back cannot return to Language/Welcome/earlier setup
@@ -25,6 +39,7 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
   const { authStatus, sessionUser, strings } = useApp();
   const [entered, setEntered] = useState(false);
   const [onboardingTick, setOnboardingTick] = useState(0);
+  const nativeApp = isNativeAppShell();
 
   useEffect(() => {
     return subscribeStore(() => setOnboardingTick((n) => n + 1));
@@ -40,9 +55,10 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
       sessionSetupCompleted: Boolean(sessionUser?.setupCompleted),
       setupStep: state.setupStep || "contacts",
       flowFloor: (state.flowFloor || "language") as FlowFloor,
+      nativeApp,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname, authStatus, sessionUser, onboardingTick]);
+  }, [pathname, authStatus, sessionUser, onboardingTick, nativeApp]);
 
   useLayoutEffect(() => {
     if (decision.allow) setEntered(true);
@@ -82,6 +98,7 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
         sessionSetupCompleted: Boolean(sessionUser?.setupCompleted),
         setupStep: latest.setupStep || "contacts",
         flowFloor: (latest.flowFloor || "language") as FlowFloor,
+        nativeApp: isNativeAppShell(),
       });
       if (next.redirect && next.redirect !== window.location.pathname) {
         router.replace(next.redirect);
@@ -110,8 +127,9 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
   }, [pathname, authStatus, sessionUser, router]);
 
   // Public website + inbox bypass the app gate entirely.
+  // Exception: native APK boots at `/` and must enter the real app flow.
   if (
-    pathname === "/" ||
+    (pathname === "/" && !nativeApp) ||
     pathname === "/download" ||
     pathname.startsWith("/download/") ||
     pathname === "/install" ||
