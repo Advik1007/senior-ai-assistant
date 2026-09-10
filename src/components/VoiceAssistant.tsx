@@ -15,12 +15,10 @@ import type { ToolCall } from "@/lib/ai/tools";
 import type { Contact } from "@/lib/db/schema";
 import { hasUsablePhoneNumber, startPhoneCall } from "@/lib/phone";
 import {
-  getSpeechRecognition,
-  ensureMicPermission,
+  listenOnce,
+  cancelListen,
   speakText,
-  speechLocale,
   stopSpeaking,
-  type SpeechRecognitionLike,
 } from "@/lib/speech";
 import { doctorsNearMeUrl, directionsUrl } from "@/lib/maps";
 import { findContactByName, findContactByRelationship } from "@/lib/storage/contacts";
@@ -138,22 +136,24 @@ export function VoiceAssistant({
   const [pendingCall, setPendingCall] = useState<Contact | null>(null);
   const [voiceSupported, setVoiceSupported] = useState(true);
   const [micHint, setMicHint] = useState<string | null>(null);
+  const [micBusy, setMicBusy] = useState(false);
 
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const pendingCallRef = useRef<Contact | null>(null);
   const offerFamilyRef = useRef(false);
   const listenAfterSpeakRef = useRef(false);
   const startListeningRef = useRef<() => void>(() => {});
   const handleUtteranceRef = useRef<(text: string) => void>(() => {});
   const startedRef = useRef(false);
+  const listenGenRef = useRef(0);
 
   const addLog = useCallback((line: string) => {
     setLog((prev) => [...prev.slice(-6), line]);
   }, []);
 
   const stopListening = useCallback(() => {
-    recognitionRef.current?.abort();
-    recognitionRef.current = null;
+    listenGenRef.current += 1;
+    setMicBusy(false);
+    void cancelListen();
   }, []);
 
   const speak = useCallback(
@@ -322,63 +322,48 @@ export function VoiceAssistant({
   );
 
   const startListening = useCallback(() => {
+    const gen = ++listenGenRef.current;
     stopSpeaking();
     setMicHint(null);
+    setVoiceSupported(true);
+    setMicBusy(true);
     setPhase("listening");
 
     void (async () => {
-      const permission = await ensureMicPermission();
-      if (permission === "denied") {
-        setVoiceSupported(true);
-        setMicHint(
-          "Microphone permission is blocked. Open phone Settings → Apps → UNK AI → Permissions → Microphone → Allow, then tap again.",
-        );
-        setPhase("idle");
-        return;
-      }
-      if (permission === "unavailable") {
-        setVoiceSupported(false);
-        setPhase("idle");
+      const result = await listenOnce({
+        lang: prefs.language,
+        prompt: "Speak now — UNK is listening",
+      });
+      if (gen !== listenGenRef.current) return;
+
+      setMicBusy(false);
+
+      if (result.ok) {
+        handleUtteranceRef.current(result.transcript);
         return;
       }
 
-      const rec = getSpeechRecognition();
-      if (!rec) {
+      if (result.error === "denied") {
+        setMicHint(
+          "Microphone permission is blocked. Open phone Settings → Apps → UNK AI → Permissions → Microphone → Allow, then tap again.",
+        );
+      } else if (result.error === "unavailable") {
         setVoiceSupported(false);
-        setPhase("idle");
-        return;
+        setMicHint(
+          "Speech recognition is not available on this phone. You can still type below.",
+        );
+      } else if (result.error === "no-speech") {
+        setMicHint("I did not catch that. Tap the mic and speak again.");
+      } else if (result.error === "busy") {
+        setMicHint("Microphone is busy. Wait a second, then tap again.");
+      } else if (result.error === "canceled") {
+        // User backed out of the system dialog — stay quiet.
+      } else {
+        setMicHint(
+          "Could not start the microphone. Check Microphone permission, then tap again.",
+        );
       }
-      recognitionRef.current = rec;
-      rec.lang = speechLocale(prefs.language);
-      rec.interimResults = false;
-      rec.continuous = false;
-      rec.maxAlternatives = 1;
-      rec.onresult = (event) => {
-        const transcript = event.results[0]?.[0]?.transcript ?? "";
-        handleUtteranceRef.current(transcript);
-      };
-      rec.onerror = (event) => {
-        if (event.error === "not-allowed") {
-          setMicHint(
-            "Microphone permission is blocked. Allow Microphone for UNK AI, then tap again.",
-          );
-        } else if (event.error === "no-speech") {
-          setMicHint("I did not catch that. Tap the mic and speak again.");
-        } else if (event.error === "service-not-allowed") {
-          setMicHint(
-            "Speech recognition is not available on this phone. You can still type below.",
-          );
-        }
-        setPhase("idle");
-      };
-      rec.onend = () => {
-        setPhase((current) => (current === "listening" ? "idle" : current));
-      };
-      try {
-        rec.start();
-      } catch {
-        setPhase("idle");
-      }
+      setPhase("idle");
     })();
   }, [prefs.language]);
 
@@ -456,7 +441,7 @@ export function VoiceAssistant({
         tone={phase === "listening" ? "help" : "gold"}
         icon={<Mic className="size-7" />}
         onClick={() => {
-          if (phase === "listening") {
+          if (phase === "listening" || micBusy) {
             stopListening();
             setPhase("idle");
           } else {
@@ -464,7 +449,7 @@ export function VoiceAssistant({
           }
         }}
       >
-        {phase === "listening" ? strings.stop : strings.tapToSpeak}
+        {phase === "listening" || micBusy ? strings.stop : strings.tapToSpeak}
       </BigButton>
 
       <div className="flex flex-col gap-3">

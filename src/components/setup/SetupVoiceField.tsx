@@ -4,13 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import { Mic } from "lucide-react";
 import { BigButton } from "@/components/BigButton";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  ensureMicPermission,
-  getSpeechRecognition,
-  speechLocale,
-  stopSpeaking,
-  type SpeechRecognitionLike,
-} from "@/lib/speech";
+import { cancelListen, listenOnce, stopSpeaking } from "@/lib/speech";
 import type { AppLanguage } from "@/lib/languages";
 
 export function SetupVoiceField({
@@ -33,43 +27,24 @@ export function SetupVoiceField({
   sendLabel: string;
 }) {
   const [listening, setListening] = useState(false);
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const genRef = useRef(0);
 
   const stopListening = useCallback(() => {
-    recognitionRef.current?.abort();
-    recognitionRef.current = null;
+    genRef.current += 1;
     setListening(false);
+    void cancelListen();
   }, []);
 
   const startListening = useCallback(() => {
+    const gen = ++genRef.current;
     stopSpeaking();
     setListening(true);
     void (async () => {
-      const permission = await ensureMicPermission();
-      if (permission !== "granted") {
-        setListening(false);
-        return;
-      }
-      const rec = getSpeechRecognition();
-      if (!rec) {
-        setListening(false);
-        return;
-      }
-      recognitionRef.current = rec;
-      rec.lang = speechLocale(lang);
-      rec.interimResults = false;
-      rec.continuous = false;
-      rec.onresult = (event) => {
-        const transcript = event.results[0]?.[0]?.transcript ?? "";
-        onChange(transcript.trim());
-        setListening(false);
-      };
-      rec.onerror = () => setListening(false);
-      rec.onend = () => setListening(false);
-      try {
-        rec.start();
-      } catch {
-        setListening(false);
+      const result = await listenOnce({ lang });
+      if (gen !== genRef.current) return;
+      setListening(false);
+      if (result.ok) {
+        onChange(result.transcript);
       }
     })();
   }, [lang, onChange]);
