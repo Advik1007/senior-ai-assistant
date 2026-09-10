@@ -217,13 +217,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const lang = prefs.language;
+  // Static catalogs are the source of truth (en, hi, gu, …). Gemini is optional.
   const staticStrings = t(lang);
   const [liveStrings, setLiveStrings] = useState<ReturnType<typeof t> | null>(
     null,
   );
   const [i18nLoading, setI18nLoading] = useState(false);
 
-  // Apply Gemini catalog as soon as language changes — every page reads `strings`.
   useEffect(() => {
     let cancelled = false;
     const cached = readCachedCatalog(lang);
@@ -231,19 +231,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setLiveStrings(cached);
       setI18nLoading(false);
     } else {
+      // Keep static language text visible immediately — never blank / error.
       setLiveStrings(null);
-      setI18nLoading(lang !== "en");
+      setI18nLoading(false);
     }
 
+    if (lang === "en") return;
+
+    // Optional background Gemini upgrade (never blocks language selection).
     void (async () => {
       try {
         const next = await fetchLanguageCatalog(lang);
         if (cancelled || !next) return;
         setLiveStrings(next);
       } catch {
-        /* keep static fallback */
-      } finally {
-        if (!cancelled) setI18nLoading(false);
+        /* static catalog stays */
       }
     })();
 
@@ -252,11 +254,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, [lang]);
 
-  // LanguageSelector / Settings may finish Gemini before prefs settle — apply instantly.
   useEffect(() => {
     function onReady(event: Event) {
-      const detail = (event as CustomEvent<{ lang: AppLanguage; strings: ReturnType<typeof t> }>)
-        .detail;
+      const detail = (
+        event as CustomEvent<{ lang: AppLanguage; strings: ReturnType<typeof t> }>
+      ).detail;
       if (!detail || detail.lang !== prefs.language) return;
       setLiveStrings(detail.strings);
       setI18nLoading(false);

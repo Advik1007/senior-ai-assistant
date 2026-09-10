@@ -1,0 +1,410 @@
+# UNK AI — English master text (translate this)
+
+Paste translations back like:
+
+```
+LANGUAGE: Gujarati (gu)
+app.tagline = ...
+home.talk = ...
+```
+
+Keep placeholders like {name} unchanged.
+Keep UNK / UNK AI unchanged.
+
+## App
+
+- `app.name`: UNK AI
+- `app.tagline`: Think beyond the known.
+- `app.welcome`: Welcome to UNK AI
+
+## Language
+
+- `language.title`: Select your language
+- `language.choose`: Select your language
+- `language.continue`: Continue
+
+## Auth
+
+- `auth.login`: Sign in to UNK AI
+- `auth.welcomeTitle`: Welcome to UNK AI
+- `auth.welcomeBody`: Next: Sign in or create an account. Then set up your contacts, daily routine, and medicines.
+- `auth.welcomeSteps`: 1. Sign in or Create account\n2. Add contacts, routine & medicines\n3. Celebrate — then open Home
+- `auth.loginSteps`: 1. Enter your email.\n2. Open the safety email we send you.\n3. Tap “Yes, it was me” to open UNK AI.
+- `auth.signup`: Create account
+- `auth.email`: Email
+- `auth.password`: Password
+- `auth.confirmPassword`: Confirm password
+- `auth.fullName`: Full name
+- `auth.forgotPassword`: Forgot password?
+- `auth.createAccount`: Create account
+- `auth.continueGuest`: Continue as Guest
+- `auth.loginButton`: Sign in
+- `auth.loginSafetyHint`: For your safety, we email you a secure link to confirm it was really you signing in.
+- `auth.emailLinkButton`: Send safety check
+- `auth.sendingEmailLink`: Sending safety check…
+- `auth.usePasswordInstead`: Sign in with password instead
+- `auth.useEmailLinkInstead`: Use email instead
+- `auth.signupButton`: Create account
+- `auth.loggingIn`: Signing in…
+- `auth.creatingAccount`: Creating account…
+- `auth.noAccount`: Don't have an account?
+- `auth.hasAccount`: Already have an account?
+- `auth.verifyTitle`: Confirm it was you
+- `auth.verifyBody`: We sent a secure link to your email. Open it only if you are signing in to UNK AI. If it was not you, ignore the email.
+- `auth.verifyResend`: Send safety check again
+- `auth.verifyResent`: Safety check sent. Open your email and confirm it was you.
+- `auth.verifySuccess`: Welcome to UNK AI. You are signed in.
+- `auth.verifyPending`: Please confirm from your email to continue.
+- `auth.resetTitle`: Reset your password
+- `auth.resetEmailSent`: If that email exists, we sent reset instructions.
+- `auth.resetNewPassword`: New password
+- `auth.resetConfirm`: Confirm new password
+- `auth.resetButton`: Update password
+- `auth.logout`: Log out
+- `auth.error.invalidEmail`: Please enter a valid email address.
+- `auth.error.nameRequired`: Please enter your full name (at least 2 letters).
+- `auth.error.passwordShort`: Password must be at least 8 characters.
+- `auth.error.passwordMismatch`: Passwords do not match.
+- `auth.error.emailInUse`: This email is already registered.
+- `auth.error.invalidCredentials`: Email or password is incorrect.
+- `auth.error.generic`: Something went wrong. Please try again.
+- `auth.error.tokenInvalid`: This link is invalid or has expired.
+- `auth.error.sendFailed`: We could not send the email. Check the address and try again.
+- `auth.error.resendTestMode`: Email is still in test mode. Ask the developer to verify a domain in Resend and set RESEND_FROM_EMAIL (not onboarding@resend.dev), or configure SMTP. Until then, use Sign in with password.
+- `auth.error.notConfigured`: Login email is not configured on the server. In Vercel → senior-ai-assistant → Settings → Environment Variables (Production), add RESEND_API_KEY + a verified RESEND_FROM_EMAIL (or SMTP_*), AUTH_SECRET, and APP_URL, then Redeploy.
+- `auth.error.dbUnavailable`: Account storage is not ready on this server. Add TURSO_DATABASE_URL and TURSO_AUTH_TOKEN in Vercel Environment Variables, then Redeploy.
+- `auth.changeLanguage`: Change language
+- `auth.setupCallsTitle`: Set up your calls
+- `auth.setupCallsHint`: Add phone numbers for family you call often. Tap the green Call buttons on the home screen to reach them.
+- `auth.setupCallsYourPhone`: Your phone number (optional)
+- `auth.setupCallsContinue`: Continue to UNK AI
+
+## Home
+
+- `home.talk`: Talk to UNK
+- `home.help`: Help
+- `home.shopping`: Shopping
+- `home.medical`: Medical
+- `home.routine`: My Routine
+- `home.emergency`: Emergency
+- `home.directions`: Directions & Places
+- `home.settings`: Settings
+- `home.family`: Call family
+- `home.bookCab`: Book a cab
+- `home.bookFlight`: Book a flight
+- `home.payBills`: Pay bills
+- `home.bookNurse`: Book a nurse
+- `home.bookBloodTest`: Book a blood test
+- `home.doctor`: UNK Doctor
+- `home.neverAutoPay`: UNK never spends money unless you confirm twice.
+
+## Family
+
+- `family.title`: Call family
+- `family.hint`: Tap a big green button. Your phone will open the calling app.
+- `family.callName`: Call {name}
+- `family.noPhone`: No phone number yet. Add it in Settings.
+- `family.addNumber`: Add number
+- `family.confirmTitle`: Call this person?
+- `family.confirmBody`: Do you want me to call {name} ({relationship})?
+- `family.yesCall`: Yes, call
+- `family.noCancel`: No, cancel
+- `relationship.caregiver`: Caregiver
+- `relationship.son`: Son
+- `relationship.daughter`: Daughter
+- `relationship.brother`: Brother
+- `relationship.sister`: Sister
+- `relationship.spouse`: Spouse
+- `relationship.grandchild`: Grandchild
+- `relationship.friend`: Friend
+- `relationship.other`: Family
+
+## Help
+
+- `help.title`: Help
+- `help.greeting`: What do you need help with? You can speak or type naturally.
+- `help.emailTitle`: Email UNK AI
+- `help.emailHint`: Send us a message if you need support.
+- `help.emailSent`: Your message has been sent.
+- `help.emailError`: The message could not be sent.
+
+## Talk
+
+- `talk.title`: Talk to UNK
+- `talk.greeting`: Hey! I'm UNK. Talk to me about anything — your day, reminders, medicine, shopping, or directions.
+- `talk.listening`: Listening… speak now
+- `talk.speaking`: UNK is speaking
+- `talk.tapToSpeak`: Tap the microphone, then speak
+- `talk.stop`: Stop
+- `talk.typeHere`: Type here
+- `talk.send`: Send
+- `talk.voiceUnsupported`: This browser cannot listen. You can still type, or open UNK on Chrome on a phone.
+
+## Settings
+
+- `settings.title`: Settings
+- `settings.textSize`: Text size
+- `settings.textLarge`: Large
+- `settings.textExtraLarge`: Extra large
+- `settings.textBiggest`: Biggest
+- `settings.language`: Language
+- `settings.voiceSpeed`: Voice speed
+- `settings.highContrast`: High contrast
+- `settings.accessibilityMode`: Accessibility mode
+- `settings.manageFamily`: Family contacts
+- `settings.manageTrusted`: Trusted contacts
+- `settings.name`: Name
+- `settings.phone`: Phone number
+- `settings.save`: Save
+- `settings.saved`: Saved
+- `settings.email`: Email for confirmations
+- `settings.yourName`: Your name
+- `settings.slow`: Slow
+- `settings.normal`: Normal
+- `settings.restartSetup`: Run setup wizard again
+- `settings.restartLanguage`: Start from language selection
+- `settings.bookingHistory`: Booking history
+- `settings.bookingEmpty`: No requests yet. Confirmed bookings appear only after a real company API accepts them.
+- `settings.memoryTitle`: Memory
+- `settings.memoryHint`: UNK can remember safe preferences you share, like favorite foods or routines. Medical details stay in Medical.
+- `settings.memoryEnabled`: Allow UNK to remember
+- `settings.memoryView`: Saved memories
+- `settings.memoryEmpty`: No memories saved yet.
+- `settings.memoryClear`: Clear all memory
+- `settings.memoryDelete`: Remove
+- `common.back`: Back
+- `common.home`: Home
+- `common.call`: Call
+- `common.send`: Send
+- `common.loading`: Loading…
+
+## Shopping
+
+- `shopping.title`: Shopping help
+- `shopping.intro`: UNK guides you step by step. You complete payment yourself on the shopping app or website.
+- `shopping.step1`: Open a shopping app or website (Blinkit, Amazon, etc.).
+- `shopping.step2`: Find the search bar at the top.
+- `shopping.step3`: Search for what you need.
+- `shopping.step4`: Choose the correct product.
+- `shopping.step5`: Add it to your cart.
+- `shopping.step6`: Open the cart and review your order.
+- `shopping.step7`: Continue to checkout.
+- `shopping.step8`: Complete payment yourself when you are ready.
+- `shopping.safety`: UNK never places orders or enters payment details for you.
+- `shopping.askUnk`: Ask UNK while shopping
+
+## Medical
+
+- `medical.title`: Medical
+- `medical.intro`: Your health information stays here. UNK can explain things simply but is not a licensed doctor.
+- `medical.symptoms`: Symptom check & health help
+- `medical.medicines`: Medicine reminders
+- `medical.profile`: Medical profile
+- `medical.findDoctor`: Find doctors near me
+- `medical.disclaimer`: For emergencies, tap Emergency. For serious symptoms, contact a real doctor or hospital.
+- `medical.medicinesHint`: Add reminders. UNK will not change doses or prescribe medicine.
+- `medical.medicineName`: Medicine name
+- `medical.dose`: Dose / instructions
+- `medical.time`: Time
+- `medical.days`: Days
+- `medical.daily`: Daily
+- `medical.addMedicine`: Add medicine reminder
+- `medical.profileHint`: Only add what you are comfortable storing on this device.
+- `medical.conditions`: Conditions
+- `medical.allergies`: Allergies
+- `medical.bloodGroup`: Blood group (optional)
+- `medical.emergencyNotes`: Notes for emergencies
+
+## Routine
+
+- `routine.title`: My Routine
+- `routine.intro`: Your calendar — tap a day to see reminders, or ask UNK: “remind me on the 25th to go to the doctor.”
+- `routine.empty`: No routines yet. Say “UNK, remind me…” or add one below.
+- `routine.task`: What to remember
+- `routine.time`: Time
+- `routine.days`: How often
+- `routine.daily`: Every day
+- `routine.anytime`: Anytime
+- `routine.add`: Add reminder
+- `routine.remove`: Remove
+- `routine.voice`: Add by voice with UNK
+- `routine.today`: Today
+- `routine.prevMonth`: Previous month
+- `routine.nextMonth`: Next month
+- `routine.dayEmpty`: Nothing planned this day. Add a reminder below.
+- `routine.dayAgenda`: Plans for this day
+- `routine.recurring`: Daily & recurring
+- `routine.recurringEmpty`: No daily routines yet.
+- `routine.month.january`: January
+- `routine.month.february`: February
+- `routine.month.march`: March
+- `routine.month.april`: April
+- `routine.month.may`: May
+- `routine.month.june`: June
+- `routine.month.july`: July
+- `routine.month.august`: August
+- `routine.month.september`: September
+- `routine.month.october`: October
+- `routine.month.november`: November
+- `routine.month.december`: December
+- `routine.weekday.sun`: Sun
+- `routine.weekday.mon`: Mon
+- `routine.weekday.tue`: Tue
+- `routine.weekday.wed`: Wed
+- `routine.weekday.thu`: Thu
+- `routine.weekday.fri`: Fri
+- `routine.weekday.sat`: Sat
+- `routine.kind.appointment`: Appointment
+- `routine.kind.reminder`: Reminder
+- `routine.kind.task`: Task
+- `routine.kind.medicine`: Medicine
+- `greeting.morning`: Good morning, {name}. Here's your routine for today.
+- `greeting.afternoon`: Good afternoon, {name}. Here's your routine for today.
+- `greeting.evening`: Good evening, {name}. Here's your routine for today.
+- `greeting.item`: {label} at {time}
+- `greeting.none`: Hello, {name}. You have a calm day ahead.
+
+## Emergency
+
+- `emergency.title`: Emergency
+- `emergency.intro`: Tap once to call. No long menus.
+- `emergency.ambulance`: Ambulance — 108
+- `emergency.police`: Police — 100
+- `emergency.fire`: Fire — 101
+- `emergency.universal`: Universal emergency — 112
+- `emergency.note`: Numbers shown are for India. In an emergency, call your local services.
+
+## Setup
+
+- `setup.step.contacts`: Step {step} of {total} — Phone & contacts
+- `setup.step.routine`: Step {step} of {total} — Daily routine
+- `setup.step.medicines`: Step {step} of {total} — Medicines
+- `setup.step.complete`: Step {step} of {total} — All done
+- `setup.contacts.title`: Your phone & contacts
+- `setup.contacts.subtitle`: First add your phone number, then family you call often. You can skip and change this later in Settings.
+- `setup.contacts.yourPhone`: Your phone number
+- `setup.contacts.voiceHint`: Try saying: “UNK, add Rahul as my son. His number is 9876543210.”
+- `setup.contacts.add`: Add Contact
+- `setup.contacts.skip`: Skip for Now
+- `setup.contacts.continue`: Continue to My Routine
+- `setup.contacts.name`: Name
+- `setup.contacts.relationship`: Relationship
+- `setup.contacts.phone`: Phone number
+- `setup.contacts.confirmTitle`: Save this contact?
+- `setup.contacts.confirmBody`: Add {name} as your {relationship}. Phone: {phone}
+- `setup.contacts.confirmYes`: Yes, Save
+- `setup.contacts.confirmNo`: No, Try Again
+- `setup.contacts.voicePlaceholder`: Speak or type to add a contact…
+- `setup.contacts.listen`: Tap to speak
+- `setup.contacts.stop`: Stop
+- `setup.contacts.send`: Understand
+- `setup.routine.title`: Tell UNK about your daily routine
+- `setup.routine.subtitle`: Speak naturally. Example: “I wake up at 7, breakfast at 8, medicine at 9, walk at 6, sleep at 10.”
+- `setup.routine.voicePlaceholder`: Describe your daily routine…
+- `setup.routine.yourRoutine`: Your Routine
+- `setup.routine.lookRight`: Does this look right?
+- `setup.routine.confirm`: Yes, Save It
+- `setup.routine.skip`: Skip for Now
+- `setup.routine.edit`: Edit
+- `setup.routine.save`: Continue
+- `setup.routine.listen`: Tap to speak
+- `setup.routine.stop`: Stop
+- `setup.routine.send`: Understand routine
+- `setup.routine.empty`: We could not understand a routine yet. Please try again.
+- `setup.medicines.title`: Set Up Your Medicines
+- `setup.medicines.subtitle`: Add medicine reminders. UNK will not change doses or prescribe medicine.
+- `setup.medicines.add`: Add Medicine
+- `setup.medicines.skip`: Skip for Now
+- `setup.medicines.name`: Medicine name
+- `setup.medicines.dose`: Dose / instructions
+- `setup.medicines.time`: Time
+- `setup.medicines.days`: Days
+- `setup.medicines.notes`: Notes (optional)
+- `setup.medicines.confirmTitle`: Is this reminder correct?
+- `setup.medicines.confirmBody`: Remind you to take {name} every day at {time}?
+- `setup.medicines.confirmYes`: Yes, Save
+- `setup.medicines.confirmNo`: No, Try Again
+- `setup.medicines.voicePlaceholder`: Example: remind me to take my medicine every day at 8 PM
+- `setup.medicines.listen`: Tap to speak
+- `setup.medicines.stop`: Stop
+- `setup.medicines.send`: Understand
+- `setup.complete.title`: Congratulations!
+- `setup.complete.subtitle`: Your UNK setup is complete.
+- `setup.complete.ready`: I'm ready whenever you need me.
+- `setup.complete.continue`: Continue to UNK
+- `setup.greetingFriend`: friend
+
+## Directions
+
+- `directions.title`: Directions & Places
+- `directions.intro`: Ask UNK how to get somewhere, or find doctors near you. UNK opens Google Maps for you.
+- `directions.askUnk`: Ask UNK for directions
+- `directions.doctors`: Find doctors near me
+
+## Doctor
+
+- `doctor.title`: UNK Doctor
+- `doctor.intro`: Advanced symptom guidance and nearby clinics. UNK helps you understand possible causes and find real doctors — not a replacement for your physician.
+- `doctor.symptomsTitle`: Check your symptoms
+- `doctor.describe`: Describe how you feel
+- `doctor.symptomPlaceholder`: Example: fever and cough for two days, feeling weak…
+- `doctor.severity`: How strong are your symptoms?
+- `doctor.analyze`: Analyze symptoms
+- `doctor.analyzing`: Analyzing…
+- `doctor.urgency`: Urgency
+- `doctor.urgency.emergency`: EMERGENCY
+- `doctor.urgency.urgent`: URGENT
+- `doctor.urgency.routine`: ROUTINE
+- `doctor.urgency.selfCare`: SELF-CARE
+- `doctor.chip.fever`: fever
+- `doctor.chip.headache`: headache
+- `doctor.chip.cough`: cough
+- `doctor.chip.chestPain`: chest pain
+- `doctor.chip.dizziness`: dizziness
+- `doctor.chip.stomachPain`: stomach pain
+- `doctor.possible`: Possible conditions (for your doctor to review)
+- `doctor.nextSteps`: Recommended next steps
+- `doctor.nearbyTitle`: Doctors near you
+- `doctor.nearbyHint`: Uses your location to find real clinics and hospitals on the map. Allow location when asked.
+- `doctor.findNearby`: Find doctors near me
+- `doctor.finding`: Finding nearby doctors…
+- `doctor.openMaps`: Open in Maps
+- `doctor.locationDenied`: Location was blocked. Allow location in your browser settings, then try again.
+- `doctor.locationUnsupported`: This device cannot share location. Open Maps and search for doctors manually.
+- `doctor.noneFound`: No clinics found nearby. Try again or search in Google Maps.
+- `doctor.searchFailed`: Could not search right now. Please try again.
+- `doctor.forUser`: Personalized for {name}
+
+## Services
+
+- `service.apiRequired`: This service needs an authorized company API. Nothing has been booked or paid.
+- `service.notMedicalAdvice`: UNK does not give medical advice. It only helps you find and book a service you choose.
+
+## AI
+
+- `ai.didNotHear`: I did not hear that. Please say it again.
+- `ai.okay`: Okay.
+- `ai.whatElse`: Okay. What else do you need?
+- `ai.openingFamily`: Opening your family list.
+- `ai.calling`: Calling {name} now.
+- `ai.noPhone`: {name} has no phone number yet. Please add it in Settings.
+- `ai.confirmCall`: Do you want me to call {name}?
+- `ai.emergency`: Opening emergency help right away.
+- `ai.shopping`: Sure. I'll help you with shopping step by step.
+- `ai.reminderSaved`: Got it. I saved a reminder for {when}.
+- `ai.openRoutine`: Opening your routine planner.
+- `ai.hereRoutine`: Here is your routine.
+- `ai.directions`: I'll open directions to {destination}.
+- `ai.doctorsNearby`: I'll find doctors near you on Google Maps.
+- `ai.openMedical`: Opening Medical. I can help with symptoms and medicine reminders.
+- `ai.needHelp`: No worries. What do you need help with?
+- `ai.noContact`: I could not find that family member. Open Settings to add their number.
+- `ai.remember`: Got it, {name}. I'll keep that in mind.
+- `ai.hello`: Hey {name}! Good to hear from you. What's on your mind?
+- `ai.bored`: I hear you, {name}. Try a short walk, call a family member, make tea, listen to a favorite song, stretch gently, or look at old photos. Want me to open Family call, Routine, or Shopping?
+- `ai.thanks`: Anytime, {name}. I'm here.
+- `ai.sad`: I'm sorry you're going through that, {name}. Want to tell me more? I'm here to listen.
+- `ai.default`: I'm listening, {name}. Ask me anything — stories, ideas, boredom fixes, family, food, news, how-to questions, or whatever is on your mind.
+- `ai.error`: I had trouble just now. Please try again, or tap Medical or Emergency.
+- `ai.friend`: friend
+- `ai.reminderLabel`: Reminder
