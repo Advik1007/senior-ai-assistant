@@ -17,7 +17,7 @@ import {
   authErrorMessage,
   type AuthUser,
 } from "@/lib/auth/client";
-import { clearLanguageChoice, markEnteredSetupFlow } from "@/lib/storage/onboarding";
+import { clearLanguageChoice, syncSetupFromAccount } from "@/lib/storage/onboarding";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -108,8 +108,8 @@ export default function SignupPage() {
       const next = applyAuthToProfile(data.user, profile, prefs);
       setProfile(next.profile);
       setPrefs(next.prefs);
-      markEnteredSetupFlow();
-      router.replace("/setup/contacts");
+      const dest = syncSetupFromAccount(Boolean(data.user.setupCompleted));
+      window.location.assign(dest);
     } catch {
       setError(strings.authErrorGeneric);
     } finally {

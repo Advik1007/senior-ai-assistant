@@ -241,6 +241,36 @@ export function markEnteredSetupFlow(): void {
   saveOnboarding(raiseFloor({ ...current, languageChosen: true }, "setup"));
 }
 
+/**
+ * Align local wizard flags with the account after login/signup/verify.
+ * Server setup_completed wins — a stale local "setup done" must not skip setup.
+ */
+export function syncSetupFromAccount(setupCompleted: boolean): string {
+  const current = getOnboardingSnapshot();
+  if (setupCompleted) {
+    markSetupComplete();
+    return "/home";
+  }
+
+  // Account still needs setup. Clear a false local "done" so the gate
+  // cannot bounce /setup → /home.
+  const step: SetupStep =
+    current.setupWizardComplete || current.flowFloor === "done"
+      ? "contacts"
+      : current.setupStep || "contacts";
+
+  saveOnboarding({
+    ...current,
+    languageChosen: true,
+    emailVerified: true,
+    setupComplete: false,
+    setupWizardComplete: false,
+    setupStep: step,
+    flowFloor: "setup",
+  });
+  return setupPathForStep(step);
+}
+
 export function markCallsSetup(): void {
   // no-op
 }

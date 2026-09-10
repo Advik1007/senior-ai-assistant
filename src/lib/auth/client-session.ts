@@ -7,6 +7,7 @@ import {
   markEmailVerified,
   markLanguageChosen,
   markSetupComplete,
+  saveOnboarding,
 } from "@/lib/storage/onboarding";
 import {
   getPreferencesSnapshot,
@@ -193,6 +194,17 @@ export function applySessionToClient(user: SessionUser): void {
 
   if (user.setupCompleted) {
     markSetupComplete();
+  } else if (onboarding.setupWizardComplete || onboarding.flowFloor === "done") {
+    // Stale local "setup finished" while the account still needs setup.
+    saveOnboarding({
+      ...getOnboardingSnapshot(),
+      setupComplete: false,
+      setupWizardComplete: false,
+      setupStep: "contacts",
+      flowFloor: "setup",
+      languageChosen: true,
+      emailVerified: true,
+    });
   }
 }
 

@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { BigButton } from "@/components/BigButton";
 import { SetupStepLabel } from "@/components/setup/SetupStepLabel";
 import { OnboardingShell } from "@/components/OnboardingShell";
@@ -9,14 +8,13 @@ import { persistSetupComplete } from "@/lib/auth/client-session";
 import { markSetupComplete } from "@/lib/storage/onboarding";
 
 export default function SetupCompletePage() {
-  const router = useRouter();
   const { strings, lang, completeLogin } = useApp();
 
   async function continueHome() {
     markSetupComplete();
     const user = await persistSetupComplete();
     if (user) completeLogin(user);
-    router.replace("/home");
+    window.location.assign("/home");
   }
 
   return (

@@ -19,9 +19,7 @@ import {
 } from "@/lib/auth/client";
 import {
   clearLanguageChoice,
-  markEnteredSetupFlow,
-  markSetupComplete,
-  nextPathAfterVerify,
+  syncSetupFromAccount,
 } from "@/lib/storage/onboarding";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -97,17 +95,9 @@ export default function LoginPage() {
       const next = applyAuthToProfile(data.user, profile, prefs);
       setProfile(next.profile);
       setPrefs(next.prefs);
-      const dest = data.user.setupCompleted
-        ? "/home"
-        : nextPathAfterVerify();
-      if (data.user.setupCompleted) {
-        markSetupComplete();
-      } else {
-        // Must raise floor to setup — auth-only floor + anonymous race bounced to /auth.
-        markEnteredSetupFlow();
-      }
-      // Soft navigate — hard location.replace remounted AppProvider and raced /me → Welcome.
-      router.replace(dest);
+      // Hard nav — soft replace can leave the WebView stuck on login/marketing.
+      const dest = syncSetupFromAccount(Boolean(data.user.setupCompleted));
+      window.location.assign(dest);
     } catch {
       setError(strings.authErrorGeneric);
     } finally {

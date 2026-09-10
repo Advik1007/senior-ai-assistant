@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
 import {
   OnboardingLink,
@@ -13,8 +13,7 @@ import { toAndroidIntentUrl, toAppDeepLink } from "@/lib/deep-link";
 import { isAppLanguage } from "@/lib/languages";
 import {
   markEmailVerified,
-  markEnteredSetupFlow,
-  nextPathAfterVerify,
+  syncSetupFromAccount,
 } from "@/lib/storage/onboarding";
 
 /**
@@ -24,7 +23,6 @@ import {
  */
 export default function VerifyClient() {
   const params = useSearchParams();
-  const router = useRouter();
   const { strings, lang, completeLogin } = useApp();
   const [status, setStatus] = useState<"handoff" | "loading" | "ok" | "error">(
     "loading",
@@ -100,15 +98,15 @@ export default function VerifyClient() {
           },
           data.token,
         );
-        if (!data.user.setupCompleted) {
-          markEnteredSetupFlow();
-        }
-      } else {
-        markEmailVerified();
-        markEnteredSetupFlow();
+        const dest = syncSetupFromAccount(Boolean(data.user.setupCompleted));
+        setStatus("ok");
+        window.setTimeout(() => window.location.assign(dest), 400);
+        return;
       }
+      markEmailVerified();
+      const dest = syncSetupFromAccount(false);
       setStatus("ok");
-      window.setTimeout(() => router.replace(nextPathAfterVerify()), 800);
+      window.setTimeout(() => window.location.assign(dest), 400);
     } catch {
       setStatus("error");
     }
