@@ -8,9 +8,8 @@ import { getOnboardingSnapshot, markLanguageChosen } from "@/lib/storage/onboard
 import { persistOnboardingToNative } from "@/lib/storage/native-onboarding";
 
 /**
- * Language pick → save preference → next screen.
- * UI text comes from the static catalog for that language (en / hi / gu / …).
- * Paste full translations into the matching i18n files — no Gemini gate.
+ * Instant language pick → pre-translated static catalog → next screen.
+ * No translation APIs and no loading gate.
  */
 export function LanguageSelector() {
   const router = useRouter();

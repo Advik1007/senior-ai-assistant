@@ -1,4 +1,5 @@
 import type { AccessibilityPreferences, UserProfile } from "@/lib/db/schema";
+import { isAppLanguage, DEFAULT_LANGUAGE } from "@/lib/languages";
 import { readJson, writeJson } from "@/lib/storage/local-store";
 import { emitStore } from "@/lib/storage/store-events";
 
@@ -26,13 +27,21 @@ let prefsWriteTimer: ReturnType<typeof setTimeout> | null = null;
 let profileWriteTimer: ReturnType<typeof setTimeout> | null = null;
 const PERSIST_MS = 250;
 
+function normalizePrefs(
+  raw: Partial<AccessibilityPreferences>,
+): AccessibilityPreferences {
+  const language = isAppLanguage(raw.language ?? "")
+    ? raw.language!
+    : DEFAULT_LANGUAGE;
+  return { ...DEFAULT_PREFERENCES, ...raw, language };
+}
+
 export function getPreferencesSnapshot(): AccessibilityPreferences {
   if (typeof window === "undefined") return DEFAULT_PREFERENCES;
   if (!prefsCache) {
-    prefsCache = {
-      ...DEFAULT_PREFERENCES,
-      ...readJson<Partial<AccessibilityPreferences>>(PREFS_KEY, {}),
-    };
+    prefsCache = normalizePrefs(
+      readJson<Partial<AccessibilityPreferences>>(PREFS_KEY, {}),
+    );
   }
   return prefsCache;
 }

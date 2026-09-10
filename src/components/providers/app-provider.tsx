@@ -40,12 +40,7 @@ import {
 } from "@/lib/storage/preferences";
 import { subscribeStore } from "@/lib/storage/store-events";
 import { t } from "@/lib/i18n";
-import {
-  fetchLanguageCatalog,
-  I18N_READY_EVENT,
-  readCachedCatalog,
-} from "@/lib/i18n/client-catalog";
-import type { AppLanguage } from "@/lib/languages";
+import { isAppLanguage, DEFAULT_LANGUAGE, type AppLanguage } from "@/lib/languages";
 import type { AuthStatus } from "@/lib/onboarding/decide-route";
 
 type AppContextValue = {
@@ -57,8 +52,6 @@ type AppContextValue = {
   setContacts: (next: Contact[]) => void;
   strings: ReturnType<typeof t>;
   lang: AppLanguage;
-  /** True while Gemini is loading a full catalog for the selected language. */
-  i18nLoading: boolean;
   ready: boolean;
   authStatus: AuthStatus;
   sessionUser: SessionUser | null;
@@ -104,7 +97,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const authEpoch = useRef(0);
 
   const setPrefs = useCallback((next: AccessibilityPreferences) => {
-    savePreferences(next);
+    const language = isAppLanguage(next.language)
+      ? next.language
+      : DEFAULT_LANGUAGE;
+    savePreferences({ ...next, language });
   }, []);
 
   const setProfile = useCallback((next: UserProfile) => {
@@ -216,58 +212,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const lang = prefs.language;
-  // Static catalogs are the source of truth (en, hi, gu, …). Gemini is optional.
-  const staticStrings = t(lang);
-  const [liveStrings, setLiveStrings] = useState<ReturnType<typeof t> | null>(
-    null,
-  );
-  const [i18nLoading, setI18nLoading] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    const cached = readCachedCatalog(lang);
-    if (cached) {
-      setLiveStrings(cached);
-      setI18nLoading(false);
-    } else {
-      // Keep static language text visible immediately — never blank / error.
-      setLiveStrings(null);
-      setI18nLoading(false);
-    }
-
-    if (lang === "en") return;
-
-    // Optional background Gemini upgrade (never blocks language selection).
-    void (async () => {
-      try {
-        const next = await fetchLanguageCatalog(lang);
-        if (cancelled || !next) return;
-        setLiveStrings(next);
-      } catch {
-        /* static catalog stays */
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [lang]);
-
-  useEffect(() => {
-    function onReady(event: Event) {
-      const detail = (
-        event as CustomEvent<{ lang: AppLanguage; strings: ReturnType<typeof t> }>
-      ).detail;
-      if (!detail || detail.lang !== prefs.language) return;
-      setLiveStrings(detail.strings);
-      setI18nLoading(false);
-    }
-    window.addEventListener(I18N_READY_EVENT, onReady);
-    return () => window.removeEventListener(I18N_READY_EVENT, onReady);
-  }, [prefs.language]);
-
-  const strings = liveStrings ?? staticStrings;
+  const lang = isAppLanguage(prefs.language) ? prefs.language : DEFAULT_LANGUAGE;
+  // Bundled static catalogs only — instant switch, no translation API / loading gate.
+  const strings = t(lang);
   const ready = authStatus !== "loading";
 
   const value = useMemo(
@@ -280,7 +227,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setContacts,
       strings,
       lang,
-      i18nLoading,
       ready,
       authStatus,
       sessionUser,
@@ -296,7 +242,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setContacts,
       strings,
       lang,
-      i18nLoading,
       ready,
       authStatus,
       sessionUser,

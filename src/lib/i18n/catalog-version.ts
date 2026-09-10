@@ -1,2 +1,2 @@
-/** Shared with client cache keys — keep in sync with gemini-catalog. */
-export const I18N_CATALOG_VERSION = "v3";
+/** Bump when shipping breaking catalog key changes. */
+export const I18N_CATALOG_VERSION = "v4-static";
