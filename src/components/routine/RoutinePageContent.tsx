@@ -94,7 +94,7 @@ export function RoutinePageContent() {
         }}
       />
 
-      <section className="rounded-3xl border-4 border-[#0B1F3A] bg-white p-4">
+      <section className="rounded-2xl border border-[#0B4F8A]/20 bg-white p-4">
         <h3 className="mb-3 text-xl font-extrabold">
           {strings.routineDayAgenda} · {selectedDate}
         </h3>
@@ -144,7 +144,7 @@ export function RoutinePageContent() {
         </div>
       </section>
 
-      <section className="rounded-3xl border-4 border-[#0B1F3A] bg-white p-4">
+      <section className="rounded-2xl border border-[#0B4F8A]/20 bg-white p-4">
         <h3 className="mb-3 text-xl font-extrabold">{strings.routineRecurring}</h3>
         {recurring.length === 0 ? (
           <p className="text-lg opacity-80">{strings.routineRecurringEmpty}</p>

@@ -59,7 +59,7 @@ export function RoutineCalendar({
   }
 
   return (
-    <section className="rounded-3xl border-4 border-[#0B1F3A] bg-white p-3 sm:p-4">
+    <section className="rounded-2xl border border-[#0B4F8A]/20 bg-white p-3 sm:p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <button
           type="button"

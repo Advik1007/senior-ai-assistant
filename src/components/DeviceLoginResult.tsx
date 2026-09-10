@@ -80,7 +80,7 @@ export function DeviceLoginResult({
       dir={dir}
       lang={meta.htmlLang}
     >
-      <div className="rounded-3xl border-4 border-[#0B1F3A] bg-white p-8 text-center shadow-sm">
+      <div className="rounded-2xl border border-[#0B4F8A]/20 bg-white p-8 text-center shadow-sm">
         <p className="text-sm font-semibold uppercase tracking-wide text-[#0B4F8A]">
           UNK AI
         </p>
@@ -105,7 +105,7 @@ export function DeviceLoginResult({
         ) : variant === "error" || variant === "used" ? (
           <Link
             href="/home"
-            className="mt-8 inline-flex min-h-16 w-full items-center justify-center rounded-2xl border-4 border-[#0B1F3A] bg-white px-6 text-xl font-bold text-[#0B1F3A]"
+            className="mt-8 inline-flex min-h-16 w-full items-center justify-center rounded-2xl border border-[#0B4F8A]/20 bg-white px-6 text-xl font-bold text-[#0B1F3A]"
           >
             {copy.continueButton}
           </Link>

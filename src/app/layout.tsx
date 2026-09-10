@@ -39,7 +39,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${readable.variable} antialiased`}>
-      <body className="min-h-dvh bg-[#EEF3F8] font-sans text-[#0B1F3A]">
+      <body className="min-h-dvh bg-[#E8EEF5] font-sans text-[#0B1F3A]">
         <AppProvider>
           <SplashReady />
           <DeepLinkHandler />

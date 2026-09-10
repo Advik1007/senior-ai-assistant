@@ -85,7 +85,7 @@ export default function SettingsPage() {
 
   return (
     <AppShell title={strings.settingsTitle}>
-      <section className="rounded-3xl border-4 border-[#0B1F3A] bg-white p-4 high-contrast:border-white high-contrast:bg-black">
+      <section className="rounded-2xl border border-[#0B4F8A]/20 bg-white p-4 high-contrast:border-white high-contrast:bg-black">
         <h2 className="mb-3 text-2xl font-extrabold">{strings.yourName}</h2>
         <Label htmlFor="displayName" className="text-lg">
           {strings.yourName}
@@ -123,7 +123,7 @@ export default function SettingsPage() {
         />
       </section>
 
-      <section className="rounded-3xl border-4 border-[#0B1F3A] bg-white p-4 high-contrast:border-white high-contrast:bg-black">
+      <section className="rounded-2xl border border-[#0B4F8A]/20 bg-white p-4 high-contrast:border-white high-contrast:bg-black">
         <h2 className="mb-4 text-2xl font-extrabold">{strings.textSize}</h2>
         <div className="flex flex-col gap-3">
           {(
@@ -144,7 +144,7 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <section className="rounded-3xl border-4 border-[#0B1F3A] bg-white p-4 high-contrast:border-white high-contrast:bg-black">
+      <section className="rounded-2xl border border-[#0B4F8A]/20 bg-white p-4 high-contrast:border-white high-contrast:bg-black">
         <h2 className="mb-4 text-2xl font-extrabold">{strings.language}</h2>
         <div className="flex flex-col gap-3">
           {LANGUAGES.map((lang) => (
@@ -171,7 +171,7 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <section className="rounded-3xl border-4 border-[#0B1F3A] bg-white p-4 high-contrast:border-white high-contrast:bg-black">
+      <section className="rounded-2xl border border-[#0B4F8A]/20 bg-white p-4 high-contrast:border-white high-contrast:bg-black">
         <h2 className="mb-4 text-2xl font-extrabold">{strings.voiceSpeed}</h2>
         <div className="flex flex-col gap-3">
           <BigButton
@@ -189,7 +189,7 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <section className="space-y-6 rounded-3xl border-4 border-[#0B1F3A] bg-white p-4 high-contrast:border-white high-contrast:bg-black">
+      <section className="space-y-6 rounded-2xl border border-[#0B4F8A]/20 bg-white p-4 high-contrast:border-white high-contrast:bg-black">
         <div className="flex items-center justify-between gap-4">
           <Label htmlFor="contrast" className="text-2xl font-bold">
             {strings.highContrast}
@@ -216,7 +216,7 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <section className="rounded-3xl border-4 border-[#0B1F3A] bg-white p-4 high-contrast:border-white high-contrast:bg-black">
+      <section className="rounded-2xl border border-[#0B4F8A]/20 bg-white p-4 high-contrast:border-white high-contrast:bg-black">
         <h2 className="mb-4 text-2xl font-extrabold">{strings.manageFamily}</h2>
         <div className="flex flex-col gap-6">
           {contacts.map((contact) => (
@@ -256,7 +256,7 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <section className="rounded-3xl border-4 border-[#0B1F3A] bg-white p-4 high-contrast:border-white high-contrast:bg-black">
+      <section className="rounded-2xl border border-[#0B4F8A]/20 bg-white p-4 high-contrast:border-white high-contrast:bg-black">
         <h2 className="mb-2 text-2xl font-extrabold">{strings.memoryTitle}</h2>
         <p className="mb-4 text-lg">{strings.memoryHint}</p>
         <div className="flex items-center justify-between gap-4">
@@ -307,7 +307,7 @@ export default function SettingsPage() {
         </BigButton>
       </section>
 
-      <section className="rounded-3xl border-4 border-[#0B1F3A] bg-white p-4 high-contrast:border-white high-contrast:bg-black">
+      <section className="rounded-2xl border border-[#0B4F8A]/20 bg-white p-4 high-contrast:border-white high-contrast:bg-black">
         <h2 className="mb-3 text-2xl font-extrabold">{strings.bookingHistory}</h2>
         {history.length === 0 ? (
           <p className="text-xl">{strings.bookingEmpty}</p>
@@ -328,7 +328,7 @@ export default function SettingsPage() {
         {saved ? strings.saved : strings.save}
       </BigButton>
 
-      <section className="rounded-3xl border-4 border-[#0B1F3A] bg-white p-4 high-contrast:border-white high-contrast:bg-black">
+      <section className="rounded-2xl border border-[#0B4F8A]/20 bg-white p-4 high-contrast:border-white high-contrast:bg-black">
         <BigButton
           tone="primary"
           onClick={() => {
@@ -353,7 +353,7 @@ export default function SettingsPage() {
         </BigButton>
       </section>
 
-      <section className="rounded-3xl border-4 border-[#0B1F3A] bg-white p-4 high-contrast:border-white high-contrast:bg-black">
+      <section className="rounded-2xl border border-[#0B4F8A]/20 bg-white p-4 high-contrast:border-white high-contrast:bg-black">
         <BigButton tone="help" onClick={() => void logout()}>
           {strings.authLogout}
         </BigButton>

@@ -29,7 +29,7 @@ export function ConfirmCallDialog({
     <Dialog open={!!contact} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
         showCloseButton={false}
-        className="max-w-md gap-6 rounded-3xl border-4 border-[#0B1F3A] p-6 sm:max-w-md"
+        className="max-w-md gap-6 rounded-2xl border border-[#0B4F8A]/20 p-6 sm:max-w-md"
       >
         <DialogHeader>
           <DialogTitle className="text-3xl font-extrabold">

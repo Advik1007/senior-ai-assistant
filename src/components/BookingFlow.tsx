@@ -204,7 +204,7 @@ export function BookingFlow({ flow }: { flow: ServiceFlow }) {
       ) : null}
 
       {message ? (
-        <div className="rounded-3xl border-4 border-[#0B1F3A] bg-white p-5 text-xl high-contrast:border-white high-contrast:bg-black">
+        <div className="rounded-2xl border border-[#0B4F8A]/20 bg-white p-5 text-xl high-contrast:border-white high-contrast:bg-black">
           <p className="mb-2 text-2xl font-extrabold">
             {step === "blocked" ? "API connection required" : "Note"}
           </p>

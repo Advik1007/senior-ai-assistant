@@ -10,15 +10,15 @@ export default function EmergencyPage() {
 
   return (
     <AppShell title={strings.emergencyTitle}>
-      <p className="text-2xl font-bold leading-relaxed text-red-700">
+      <p className="text-lg font-semibold leading-relaxed text-[#C62828]">
         {strings.emergencyIntro}
       </p>
 
       <BigButton
         href="tel:108"
         tone="call"
-        className="min-h-32 text-3xl"
-        icon={<Siren className="size-10" />}
+        className="min-h-24 text-2xl"
+        icon={<Siren className="size-8" />}
       >
         {strings.emergencyAmbulance}
       </BigButton>
@@ -26,8 +26,8 @@ export default function EmergencyPage() {
       <BigButton
         href="tel:100"
         tone="help"
-        className="min-h-32 text-3xl"
-        icon={<Phone className="size-10" />}
+        className="min-h-24 text-2xl"
+        icon={<Phone className="size-8" />}
       >
         {strings.emergencyPolice}
       </BigButton>
@@ -35,17 +35,17 @@ export default function EmergencyPage() {
       <BigButton
         href="tel:101"
         tone="service"
-        className="min-h-32 text-3xl"
-        icon={<Flame className="size-10" />}
+        className="min-h-24 text-2xl"
+        icon={<Flame className="size-8" />}
       >
         {strings.emergencyFire}
       </BigButton>
 
-      <BigButton href="tel:112" tone="muted" className="min-h-24 text-2xl">
+      <BigButton href="tel:112" tone="muted" className="min-h-16 text-xl">
         {strings.emergencyUniversal}
       </BigButton>
 
-      <p className="text-lg opacity-80">{strings.emergencyNote}</p>
+      <p className="text-base text-[#5A6B7D]">{strings.emergencyNote}</p>
     </AppShell>
   );
 }

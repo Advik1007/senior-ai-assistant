@@ -177,10 +177,8 @@ body {
   overscroll-behavior-y: auto;
   touch-action: pan-y !important;
   -webkit-overflow-scrolling: touch;
-  background:
-    radial-gradient(100% 70% at 100% -5%, rgba(26, 111, 176, 0.2), transparent 52%),
-    radial-gradient(80% 50% at -10% 90%, rgba(244, 180, 0, 0.1), transparent 48%),
-    linear-gradient(180deg, #e4eef8 0%, #eef3f8 40%, #e8eef5 100%);
+  /* Flat fill — radial meshes cost paint on low-end Android WebViews. */
+  background: #e8eef5;
 }
 
 @media (prefers-reduced-motion: reduce) {

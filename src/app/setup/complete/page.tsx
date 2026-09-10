@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { BigButton } from "@/components/BigButton";
-import { PartyPopper } from "@/components/setup/PartyPopper";
 import { SetupStepLabel } from "@/components/setup/SetupStepLabel";
 import { OnboardingShell } from "@/components/OnboardingShell";
 import { useApp } from "@/components/providers/app-provider";
@@ -14,7 +13,6 @@ export default function SetupCompletePage() {
   const { strings, lang, completeLogin } = useApp();
 
   async function continueHome() {
-    // Local flag immediately so the gate does not bounce back into setup.
     markSetupComplete();
     const user = await persistSetupComplete();
     if (user) completeLogin(user);
@@ -24,16 +22,19 @@ export default function SetupCompletePage() {
   return (
     <OnboardingShell
       lang={lang}
-      title={`🎉 ${strings.setupCompleteTitle}`}
+      title={strings.setupCompleteTitle}
       tagline={strings.tagline}
     >
       <SetupStepLabel step={4} label={strings.setupStepComplete} />
-      <PartyPopper />
-      <p className="text-center text-2xl font-bold">{strings.setupCompleteSubtitle}</p>
-      <p className="text-center text-xl leading-relaxed">{strings.setupCompleteReady}</p>
+      <p className="text-center text-xl font-bold text-[#0B1F3A]">
+        {strings.setupCompleteSubtitle}
+      </p>
+      <p className="text-center text-lg leading-relaxed text-[#5a6f85]">
+        {strings.setupCompleteReady}
+      </p>
       <BigButton
-        tone="call"
-        className="mt-4"
+        tone="gold"
+        className="mt-2"
         onClick={() => void continueHome()}
       >
         {strings.setupCompleteContinue}

@@ -21,26 +21,26 @@ export default function FamilyPage() {
 
   return (
     <AppShell title={strings.familyTitle}>
-      <p className="text-xl">{strings.familyHint}</p>
+      <p className="text-lg text-[#3D4F63]">{strings.familyHint}</p>
 
       {contacts.map((contact) => {
         const ready = hasUsablePhoneNumber(contact.phoneNumber);
         return (
           <article
             key={contact.id}
-            className="rounded-3xl border-4 border-[#0B1F3A] bg-white p-4 high-contrast:border-white high-contrast:bg-black"
+            className="rounded-2xl border border-[#0B4F8A]/20 bg-white p-4 high-contrast:border-white high-contrast:bg-black"
           >
-            <p className="text-lg font-bold uppercase tracking-wide text-[#0B4F8A] high-contrast:text-[#FFD60A]">
+            <p className="text-sm font-bold tracking-wide text-[#0B4F8A] uppercase high-contrast:text-[#FFD60A]">
               {strings.relationship[contact.relationship]}
             </p>
-            <h2 className="text-3xl font-extrabold">{contact.name}</h2>
-            <p className="mb-3 text-xl">
+            <h2 className="text-2xl font-bold">{contact.name}</h2>
+            <p className="mb-3 text-lg text-[#3D4F63]">
               {ready ? contact.phoneNumber : strings.noPhone}
             </p>
             {ready ? (
               <BigButton
                 tone="call"
-                icon={<Phone className="size-8" />}
+                icon={<Phone className="size-7" />}
                 onClick={() => setPending(contact)}
               >
                 {strings.callName(contact.name)}

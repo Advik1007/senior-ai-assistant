@@ -24,7 +24,7 @@ export default function MedicalProfilePage() {
     <AppShell title={strings.medicalProfile}>
       <p className="text-xl">{strings.medicalProfileHint}</p>
 
-      <section className="rounded-3xl border-4 border-[#0B1F3A] bg-white p-4">
+      <section className="rounded-2xl border border-[#0B4F8A]/20 bg-white p-4">
         <Label className="text-lg">{strings.medicalConditions}</Label>
         <Textarea
           value={profile.conditions}

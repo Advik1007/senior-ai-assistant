@@ -396,11 +396,11 @@ export function VoiceAssistant({
         </p>
       ) : null}
 
-      <div className="min-h-40 rounded-2xl border-4 border-[#0B1F3A] bg-white p-4 text-xl high-contrast:border-white high-contrast:bg-black">
+      <div className="min-h-36 rounded-2xl border border-[#0B4F8A]/20 bg-white p-4 text-lg high-contrast:border-white high-contrast:bg-black">
         {log.length === 0 ? (
-          <p className="opacity-70">{greeting}</p>
+          <p className="text-[#5A6B7D]">{greeting}</p>
         ) : (
-          <ul className="space-y-3">
+          <ul className="space-y-2">
             {log.map((line, i) => (
               <li key={`${i}-${line}`}>{line}</li>
             ))}
@@ -409,13 +409,8 @@ export function VoiceAssistant({
       </div>
 
       <BigButton
-        tone={phase === "listening" ? "help" : "primary"}
-        className={
-          phase === "listening"
-            ? "ring-4 ring-[#FF1744]/50"
-            : "active:bg-[#B00020] active:border-[#8A0018]"
-        }
-        icon={<Mic className="size-8" />}
+        tone={phase === "listening" ? "help" : "gold"}
+        icon={<Mic className="size-7" />}
         onClick={() => {
           if (phase === "listening") {
             stopListening();
@@ -428,16 +423,15 @@ export function VoiceAssistant({
         {phase === "listening" ? strings.stop : strings.tapToSpeak}
       </BigButton>
 
-
       <div className="flex flex-col gap-3">
-          <label className="text-xl font-bold" htmlFor="unk-type">
+          <label className="text-lg font-bold" htmlFor="unk-type">
             {strings.typeHere}
           </label>
           <Textarea
             id="unk-type"
             value={typed}
             onChange={(e) => setTyped(e.target.value)}
-            className="min-h-24 rounded-2xl border-4 border-[#0B1F3A] p-4 text-xl md:text-xl"
+            className="min-h-20 rounded-2xl border border-[#0B4F8A]/20 p-4 text-lg md:text-lg"
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();

@@ -22,7 +22,7 @@ export function VoiceStatus({
     <div
       role="status"
       aria-live="polite"
-      className="flex min-h-24 items-center gap-4 rounded-2xl border-4 border-[#0B1F3A] bg-white px-4 py-3 high-contrast:border-white high-contrast:bg-black"
+      className="flex min-h-24 items-center gap-4 rounded-2xl border border-[#0B4F8A]/20 bg-white px-4 py-3 high-contrast:border-white high-contrast:bg-black"
     >
       <div
         className={

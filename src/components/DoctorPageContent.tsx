@@ -133,7 +133,7 @@ export function DoctorPageContent() {
         {strings.notMedicalAdvice}
       </p>
 
-      <section className="rounded-3xl border-4 border-[#0B1F3A] bg-white p-4">
+      <section className="rounded-2xl border border-[#0B4F8A]/20 bg-white p-4">
         <h2 className="mb-3 flex items-center gap-2 text-2xl font-extrabold">
           <Stethoscope className="size-7" aria-hidden />
           {strings.doctorSymptomsTitle}
@@ -178,7 +178,7 @@ export function DoctorPageContent() {
       </section>
 
       {result ? (
-        <section className="flex flex-col gap-4 rounded-3xl border-4 border-[#0B1F3A] bg-white p-4">
+        <section className="flex flex-col gap-4 rounded-2xl border border-[#0B4F8A]/20 bg-white p-4">
           <div className={`rounded-2xl p-4 text-xl font-bold ${urgencyColor}`}>
             {strings.doctorUrgency}: {urgencyLabel}
             <p className="mt-2 text-base font-semibold">{result.urgencyReason}</p>
@@ -208,7 +208,7 @@ export function DoctorPageContent() {
         </section>
       ) : null}
 
-      <section className="rounded-3xl border-4 border-[#0B1F3A] bg-white p-4">
+      <section className="rounded-2xl border border-[#0B4F8A]/20 bg-white p-4">
         <h2 className="mb-3 flex items-center gap-2 text-2xl font-extrabold">
           <MapPin className="size-7" aria-hidden />
           {strings.doctorNearbyTitle}

@@ -18,32 +18,31 @@ export function AppShell({
 
   return (
     <div
-      className="mx-auto flex min-h-svh w-full max-w-lg flex-col px-4 pb-8 pt-4"
+      className="app-shell relative mx-auto flex min-h-svh w-full max-w-lg flex-col px-4 pb-8 pt-4"
       data-text-size={prefs.textSize}
       data-a11y={prefs.accessibilityMode ? "on" : "off"}
     >
-      <header className="mb-3 flex shrink-0 items-center gap-3">
+      <header className="mb-4 flex shrink-0 items-center gap-3 rounded-2xl bg-[#0B1F3A] px-3 py-3 text-white high-contrast:bg-black high-contrast:ring-2 high-contrast:ring-white">
         {showBack ? (
           <Link
             href="/home"
-            className="inline-flex min-h-14 min-w-14 items-center justify-center rounded-2xl border-4 border-[#0B1F3A] bg-white px-3 text-xl font-bold text-[#0B1F3A] high-contrast:border-white high-contrast:bg-black high-contrast:text-white"
+            className="inline-flex min-h-12 min-w-12 items-center justify-center rounded-xl border border-white/25 bg-white/10 text-white high-contrast:border-white"
           >
-            <ArrowLeft aria-hidden className="size-8" />
+            <ArrowLeft aria-hidden className="size-6" />
             <span className="sr-only">{strings.back}</span>
           </Link>
         ) : (
-          <UnkLogo />
+          <UnkLogo className="size-12 shrink-0" />
         )}
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold uppercase tracking-wide text-[#0B4F8A] high-contrast:text-[#FFD60A]">
-            {strings.appName}
+          <p className="text-[0.65rem] font-bold tracking-[0.22em] text-[#F4B400] uppercase">
+            UNK AI
           </p>
-          <h1 className="truncate text-3xl font-extrabold leading-tight">
+          <h1 className="truncate text-xl font-bold leading-tight sm:text-2xl high-contrast:text-[#FFD60A]">
             {title ?? strings.tagline}
           </h1>
         </div>
       </header>
-      {/* Document scrolls — do not nest overflow-y-auto here (WebView snap-back). */}
       <main className="flex flex-1 flex-col gap-3">{children}</main>
     </div>
   );

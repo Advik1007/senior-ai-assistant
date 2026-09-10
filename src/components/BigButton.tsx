@@ -4,21 +4,24 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
-type Tone = "primary" | "call" | "help" | "service" | "muted";
+type Tone = "primary" | "call" | "help" | "service" | "muted" | "gold";
 
+/** Flat fills — no multi-stop gradients / soft blurs (faster on Android WebView). */
 const tones: Record<Tone, string> = {
   primary:
-    "bg-[#0B4F8A] text-white hover:bg-[#083A66] border-[#083A66] high-contrast:bg-[#FFD60A] high-contrast:text-black high-contrast:border-white",
-  call: "bg-[#0D6B3D] text-white hover:bg-[#094C2B] border-[#094C2B] high-contrast:bg-[#00E676] high-contrast:text-black",
-  help: "bg-[#B00020] text-white hover:bg-[#8A0018] border-[#8A0018] high-contrast:bg-[#FF1744] high-contrast:text-white",
+    "bg-[#0B4F8A] text-white border-[#0B4F8A] high-contrast:bg-[#FFD60A] high-contrast:text-black high-contrast:border-white",
+  gold:
+    "bg-[#F4B400] text-[#0B1F3A] border-[#F4B400] high-contrast:bg-[#FFD60A] high-contrast:text-black high-contrast:border-white",
+  call: "bg-[#0D6B3D] text-white border-[#0D6B3D] high-contrast:bg-[#00E676] high-contrast:text-black high-contrast:border-white",
+  help: "bg-[#C62828] text-white border-[#C62828] high-contrast:bg-[#FF1744] high-contrast:text-white high-contrast:border-white",
   service:
-    "bg-white text-[#0B1F3A] hover:bg-[#EEF3F8] border-[#0B1F3A] high-contrast:bg-black high-contrast:text-white high-contrast:border-white",
+    "bg-white text-[#0B1F3A] border-[#0B4F8A]/25 high-contrast:bg-black high-contrast:text-white high-contrast:border-white",
   muted:
-    "bg-[#E8EEF4] text-[#0B1F3A] hover:bg-[#D5DEE8] border-[#0B1F3A]/20 high-contrast:bg-black high-contrast:text-white high-contrast:border-white",
+    "bg-[#D7E3EF] text-[#0B1F3A] border-transparent high-contrast:bg-black high-contrast:text-white high-contrast:border-white",
 };
 
 const shared =
-  "inline-flex min-h-20 items-center justify-center gap-3 rounded-2xl border-4 px-5 py-4 text-left text-2xl font-bold leading-tight shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#F4B400] focus-visible:ring-offset-4";
+  "inline-flex min-h-[4.25rem] items-center justify-center gap-3 rounded-2xl border-2 px-4 py-3 text-left text-xl font-bold leading-tight focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#F4B400] focus-visible:ring-offset-2";
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
   tone?: Tone;
@@ -47,7 +50,7 @@ export function BigButton({
   const inner = (
     <>
       {icon ? (
-        <span className="shrink-0 text-3xl" aria-hidden>
+        <span className="shrink-0 text-2xl" aria-hidden>
           {icon}
         </span>
       ) : null}
@@ -57,7 +60,9 @@ export function BigButton({
 
   if (href) {
     const external =
-      href.startsWith("http") || href.startsWith("tel:") || href.startsWith("mailto:");
+      href.startsWith("http") ||
+      href.startsWith("tel:") ||
+      href.startsWith("mailto:");
     if (external) {
       const isHttp = href.startsWith("http");
       return (

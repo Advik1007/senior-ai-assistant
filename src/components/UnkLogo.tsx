@@ -1,4 +1,4 @@
-export function UnkLogo({ className = "size-14" }: { className?: string }) {
+export function UnkLogo({ className = "size-12" }: { className?: string }) {
   return (
     <svg
       className={className}
@@ -9,12 +9,13 @@ export function UnkLogo({ className = "size-14" }: { className?: string }) {
       <rect width="64" height="64" rx="16" fill="#0B4F8A" />
       <text
         x="32"
-        y="42"
+        y="41"
         textAnchor="middle"
-        fontSize="22"
+        fontSize="18"
         fontWeight="800"
-        fill="white"
+        fill="#F4B400"
         fontFamily="system-ui, sans-serif"
+        letterSpacing="1.5"
       >
         UNK
       </text>
