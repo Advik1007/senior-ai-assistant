@@ -156,29 +156,26 @@ html[data-a11y="on"] a {
 }
 
 /*
- * One natural document scroll for website + app (Capacitor WebView).
- * Do NOT lock html/body to height:100% + overflow:hidden — that traps
- * touch scroll. Do NOT nest a second overflow-y:auto page shell.
+ * Window/document scroll only (website + Capacitor WebView).
+ * Never put overflow-x/y on <html> — on mobile that creates a scroll
+ * containment and touch pan stops working even when content is tall.
+ * Do not nest a second overflow-y:auto page shell.
  */
 html {
-  height: auto;
+  height: auto !important;
   min-height: 100%;
-  overflow-x: clip;
-  overflow-y: scroll;
+  overflow: visible !important;
   scroll-behavior: auto;
   overscroll-behavior-y: auto;
   -webkit-text-size-adjust: 100%;
-  -webkit-overflow-scrolling: touch;
 }
 
 body {
-  height: auto;
+  height: auto !important;
   min-height: 100%;
-  overflow-x: clip;
-  overflow-y: visible;
+  overflow: visible !important;
   overscroll-behavior-y: auto;
-  /* Vertical pan must stay enabled (manipulation alone can feel stuck on some WebViews). */
-  touch-action: pan-y;
+  touch-action: pan-y !important;
   -webkit-overflow-scrolling: touch;
   background:
     radial-gradient(100% 70% at 100% -5%, rgba(26, 111, 176, 0.2), transparent 52%),

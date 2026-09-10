@@ -87,11 +87,13 @@ public class MainActivity extends BridgeActivity {
     }
     webViewTuned = true;
 
-    // Allow normal page scroll inside the WebView (website + in-app screens).
+    // Page scroll must live in the WebView document (CSS), not a parent scroller.
     webView.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
-    webView.setNestedScrollingEnabled(true);
+    webView.setNestedScrollingEnabled(false);
     webView.setVerticalScrollBarEnabled(true);
     webView.setHorizontalScrollBarEnabled(false);
+    webView.setFocusable(true);
+    webView.setFocusableInTouchMode(true);
     webView.setLayerType(View.LAYER_TYPE_NONE, null);
     webView.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
 
