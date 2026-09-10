@@ -87,8 +87,11 @@ public class MainActivity extends BridgeActivity {
     }
     webViewTuned = true;
 
-    webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
-    webView.setNestedScrollingEnabled(false);
+    // Allow normal page scroll inside the WebView (website + in-app screens).
+    webView.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
+    webView.setNestedScrollingEnabled(true);
+    webView.setVerticalScrollBarEnabled(true);
+    webView.setHorizontalScrollBarEnabled(false);
     webView.setLayerType(View.LAYER_TYPE_NONE, null);
     webView.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
 

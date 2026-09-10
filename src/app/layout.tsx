@@ -33,13 +33,13 @@ export const viewport: Viewport = {
   viewportFit: "cover",
   // Keep layout stable when the soft keyboard opens (no resize/zoom jump).
   interactiveWidget: "overlays-content",
-  themeColor: "#0B4F8A",
+  themeColor: "#0B1F3A",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${readable.variable} h-full antialiased`}>
-      <body className="min-h-full bg-[#F4F1E8] font-sans text-[#0B1F3A]">
+    <html lang="en" className={`${readable.variable} antialiased`}>
+      <body className="min-h-dvh bg-[#EEF3F8] font-sans text-[#0B1F3A]">
         <AppProvider>
           <SplashReady />
           <DeepLinkHandler />

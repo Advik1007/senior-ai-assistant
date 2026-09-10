@@ -50,7 +50,7 @@
 }
 
 :root {
-  --background: #f4f1e8;
+  --background: #eef3f8;
   --foreground: #0b1f3a;
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
@@ -155,27 +155,35 @@ html[data-a11y="on"] a {
   }
 }
 
-/* Single document scroll root — nested overflow:hidden + inner overflow-y-auto
-   causes Android WebView rubber-band then snap-back mid-gesture. */
+/*
+ * One natural document scroll for website + app (Capacitor WebView).
+ * Do NOT lock html/body to height:100% + overflow:hidden — that traps
+ * touch scroll. Do NOT nest a second overflow-y:auto page shell.
+ */
 html {
-  height: 100%;
-  overflow-x: hidden;
-  overflow-y: auto;
+  height: auto;
+  min-height: 100%;
+  overflow-x: clip;
+  overflow-y: scroll;
   scroll-behavior: auto;
-  overscroll-behavior-y: none;
+  overscroll-behavior-y: auto;
   -webkit-text-size-adjust: 100%;
+  -webkit-overflow-scrolling: touch;
 }
 
 body {
+  height: auto;
   min-height: 100%;
-  overflow-x: hidden;
-  overscroll-behavior-y: none;
-  /* pan + tap only — blocks double-tap zoom; pinch blocked via WebView + viewport */
-  touch-action: manipulation;
-}
-
-[data-scroll-root] {
-  overscroll-behavior-y: none;
+  overflow-x: clip;
+  overflow-y: visible;
+  overscroll-behavior-y: auto;
+  /* Vertical pan must stay enabled (manipulation alone can feel stuck on some WebViews). */
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  background:
+    radial-gradient(100% 70% at 100% -5%, rgba(26, 111, 176, 0.2), transparent 52%),
+    radial-gradient(80% 50% at -10% 90%, rgba(244, 180, 0, 0.1), transparent 48%),
+    linear-gradient(180deg, #e4eef8 0%, #eef3f8 40%, #e8eef5 100%);
 }
 
 @media (prefers-reduced-motion: reduce) {
