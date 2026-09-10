@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { OnboardingShell } from "@/components/OnboardingShell";
 import { useApp } from "@/components/providers/app-provider";
 import { LANGUAGES, type AppLanguage } from "@/lib/languages";
@@ -9,18 +8,17 @@ import { persistOnboardingToNative } from "@/lib/storage/native-onboarding";
 
 /**
  * Instant language pick → pre-translated static catalog → next screen.
- * No translation APIs and no loading gate.
+ * Hard navigation so taps always work in Android WebView.
  */
 export function LanguageSelector() {
-  const router = useRouter();
   const { prefs, setPrefs, setProfile, profile, strings } = useApp();
 
-  async function selectLanguage(code: AppLanguage) {
+  function selectLanguage(code: AppLanguage) {
     setPrefs({ ...prefs, language: code });
     setProfile({ ...profile, preferredLanguage: code });
     markLanguageChosen();
-    await persistOnboardingToNative(getOnboardingSnapshot(), code);
-    router.replace("/auth");
+    void persistOnboardingToNative(getOnboardingSnapshot(), code);
+    window.location.assign("/auth");
   }
 
   return (
@@ -30,7 +28,7 @@ export function LanguageSelector() {
       tagline={strings.tagline}
     >
       <ul
-        className="m-0 grid list-none grid-cols-1 content-start gap-0 p-0 sm:grid-cols-2"
+        className="m-0 flex list-none flex-col gap-2 p-0"
         role="listbox"
         aria-label={strings.languageChoose}
       >
@@ -40,15 +38,13 @@ export function LanguageSelector() {
               type="button"
               role="option"
               aria-selected={prefs.language === lang.code}
-              onClick={() => void selectLanguage(lang.code)}
-              className="flex min-h-12 w-full cursor-pointer items-center justify-between border-b border-[#0B1F3A]/10 px-2 py-3 text-left hover:bg-[#f7f9fb] hover:text-[#0B4F8A] focus-visible:bg-[#eef4fa] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B4F8A]/25"
+              onClick={() => selectLanguage(lang.code)}
+              className="flex min-h-14 w-full cursor-pointer items-center justify-between rounded-xl border border-[#0B4F8A]/20 bg-[#F7FAFC] px-4 py-3 text-left active:bg-[#E8F1FA] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#F4B400]"
             >
-              <span className="text-lg font-semibold text-[#0B1F3A] sm:text-xl">
+              <span className="text-xl font-bold text-[#0B1F3A]">
                 {lang.nativeLabel}
               </span>
-              <span className="text-sm text-[#8a9bb0] sm:text-base">
-                {lang.englishName}
-              </span>
+              <span className="text-base text-[#5A6B7D]">{lang.englishName}</span>
             </button>
           </li>
         ))}

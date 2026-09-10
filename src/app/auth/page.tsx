@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { BigButton } from "@/components/BigButton";
 import {
-  OnboardingLink,
   OnboardingShell,
   onboardingMutedTextClass,
 } from "@/components/OnboardingShell";
@@ -22,25 +21,36 @@ export default function AuthWelcomePage() {
       lang={lang}
       title={strings.authWelcomeTitle}
       subtitle={strings.authWelcomeBody}
-      footer={
-        <OnboardingLink
-          onClick={() => {
-            clearLanguageChoice();
-            router.replace("/start");
-          }}
-        >
-          {strings.authChangeLanguage}
-        </OnboardingLink>
-      }
     >
       <p className={onboardingMutedTextClass}>{strings.authWelcomeSteps}</p>
 
-      <BigButton href="/auth/login" tone="primary">
+      <BigButton
+        tone="primary"
+        onClick={() => {
+          window.location.assign("/auth/login");
+        }}
+      >
         {strings.authLoginButton}
       </BigButton>
 
-      <BigButton href="/auth/signup" tone="call">
+      <BigButton
+        tone="call"
+        onClick={() => {
+          window.location.assign("/auth/signup");
+        }}
+      >
         {strings.authCreateAccount}
+      </BigButton>
+
+      <BigButton
+        tone="muted"
+        onClick={() => {
+          clearLanguageChoice();
+          // Hard navigate — soft replace can lose to the onboarding gate in WebView.
+          window.location.assign("/start");
+        }}
+      >
+        {strings.authChangeLanguage}
       </BigButton>
     </OnboardingShell>
   );
