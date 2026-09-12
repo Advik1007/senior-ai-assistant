@@ -54,6 +54,7 @@ export default function SettingsPage() {
   // Local drafts — avoid emitStore/full-tree re-render on every keystroke.
   const [draftName, setDraftName] = useState(profile.displayName);
   const [draftPhone, setDraftPhone] = useState(profile.phone);
+  const [draftEmail, setDraftEmail] = useState(profile.email);
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
 
