@@ -91,11 +91,11 @@ export function BigButton({
       type="button"
       className={classes}
       {...props}
-      onClick={tap.onClick}
-      onTouchEnd={(event) => {
-        tap.onTouchEnd(event);
-        props.onTouchEnd?.(event);
+      onPointerDown={(event) => {
+        tap.onPointerDown(event);
+        props.onPointerDown?.(event);
       }}
+      onClick={tap.onClick}
     >
       {inner}
     </button>

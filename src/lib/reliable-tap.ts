@@ -1,31 +1,33 @@
 "use client";
 
-import { useRef, type MouseEvent, type TouchEvent } from "react";
+import { useRef, type MouseEvent, type PointerEvent } from "react";
 
 /**
- * Android WebView often never fires click if we wait on pointer events.
- * Fire on touchend, and ignore the delayed click that may follow.
+ * Android WebView often drops click. Start on pointerdown (finger down),
+ * and ignore a following click. Never preventDefault — that can swallow the tap.
  */
 export function useReliableTap<T extends HTMLElement>(
   onActivate?: (event: MouseEvent<T>) => void,
   disabled?: boolean,
 ) {
   const last = useRef(0);
+  const activate = useRef(onActivate);
+  activate.current = onActivate;
 
-  function invoke(event: MouseEvent<T> | TouchEvent<T>) {
-    if (!onActivate || disabled) return;
+  function invoke(event: MouseEvent<T> | PointerEvent<T>) {
+    if (!activate.current || disabled) return;
     const now = Date.now();
-    if (now - last.current < 500) return;
+    if (now - last.current < 350) return;
     last.current = now;
-    onActivate(event as MouseEvent<T>);
+    activate.current(event as MouseEvent<T>);
   }
 
   return {
-    onClick(event: MouseEvent<T>) {
+    onPointerDown(event: PointerEvent<T>) {
+      if (event.button > 0) return;
       invoke(event);
     },
-    onTouchEnd(event: TouchEvent<T>) {
-      if (event.cancelable) event.preventDefault();
+    onClick(event: MouseEvent<T>) {
       invoke(event);
     },
   };

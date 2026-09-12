@@ -149,7 +149,6 @@ export function VoiceAssistant({
   const handleUtteranceRef = useRef<(text: string) => void>(() => {});
   const startedRef = useRef(false);
   const listenGenRef = useRef(0);
-  const lastMicTapRef = useRef(0);
 
   const addLog = useCallback((line: string) => {
     setLog((prev) => [...prev.slice(-6), line]);
@@ -373,15 +372,12 @@ export function VoiceAssistant({
   }, [prefs.language]);
 
   function toggleMic() {
-    const now = Date.now();
-    if (now - lastMicTapRef.current < 1000) return;
-    lastMicTapRef.current = now;
     if (phase === "listening" || micBusy) {
       stopListening();
       setPhase("idle");
-    } else {
-      startListening();
+      return;
     }
+    startListening();
   }
 
   useEffect(() => {
@@ -425,6 +421,15 @@ export function VoiceAssistant({
         onPress={toggleMic}
       />
 
+      <BigButton
+        tone={micButtonTone(phase, micBusy)}
+        icon={<Mic className="size-7" />}
+        onClick={toggleMic}
+        className="relative z-20 min-h-[5.5rem] text-2xl"
+      >
+        {phase === "listening" || micBusy ? strings.stop : strings.tapToSpeak}
+      </BigButton>
+
       {!voiceSupported ? (
         <p className="rounded-2xl bg-[#FFF4CC] p-4 text-xl font-semibold text-[#0B1F3A]">
           {strings.voiceUnsupported}
@@ -451,14 +456,6 @@ export function VoiceAssistant({
           </ul>
         )}
       </div>
-
-      <BigButton
-        tone={micButtonTone(phase, micBusy)}
-        icon={<Mic className="size-7" />}
-        onClick={toggleMic}
-      >
-        {phase === "listening" || micBusy ? strings.stop : strings.tapToSpeak}
-      </BigButton>
 
       <div className="flex flex-col gap-3">
           <label className="text-lg font-bold" htmlFor="unk-type">

@@ -10,8 +10,6 @@ export function micButtonTone(
   busy = false,
 ): "gold" | "help" | "primary" | "muted" {
   if (phase === "listening" || busy) return "help";
-  if (phase === "speaking") return "primary";
-  if (phase === "processing") return "muted";
   return "gold";
 }
 
@@ -80,8 +78,8 @@ export function VoiceStatus({
       <button
         type="button"
         aria-live="polite"
+        onPointerDown={tap.onPointerDown}
         onClick={tap.onClick}
-        onTouchEnd={tap.onTouchEnd}
         className={`${shared} cursor-pointer [touch-action:manipulation] active:brightness-95`}
       >
         {inner}
