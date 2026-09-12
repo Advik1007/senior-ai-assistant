@@ -1,7 +1,6 @@
 import "server-only";
 
 import nodemailer from "nodemailer";
-import { Resend } from "resend";
 import type { AppLanguage } from "@/lib/languages";
 import { createDeviceLoginLinks } from "@/lib/email/device-login-tokens";
 import { newDeviceLoginEmail } from "@/lib/email/device-login-template";
@@ -13,9 +12,9 @@ import {
   welcomeEmail,
   type EmailTemplate,
 } from "@/lib/email/templates";
-import { RESEND_TEST_FROM } from "@/lib/email/resend-test";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const DEFAULT_FROM = "UNK AI <hello.unkai@gmail.com>";
 
 export class EmailConfigurationError extends Error {
   constructor(message: string) {
@@ -25,14 +24,10 @@ export class EmailConfigurationError extends Error {
 }
 
 export class EmailDeliveryError extends Error {
-  readonly code: "send_failed" | "resend_test_mode";
+  readonly code: "send_failed";
 
-  constructor(code: "send_failed" | "resend_test_mode" = "send_failed") {
-    super(
-      code === "resend_test_mode"
-        ? "Gmail SMTP is not set, so Resend test mode can only email the Resend account inbox. Set SMTP_PASS (free Gmail App Password for hello.unkai@gmail.com) to send to any address."
-        : "The email could not be sent. Please try again later.",
-    );
+  constructor(code: "send_failed" = "send_failed") {
+    super("The email could not be sent. Please try again later.");
     this.name = "EmailDeliveryError";
     this.code = code;
   }
@@ -54,28 +49,26 @@ function smtpPass(): string {
   return cleanEnv(process.env.SMTP_PASS).replace(/\s+/g, "");
 }
 
-function isResendTestFrom(from: string): boolean {
-  return from.toLowerCase().includes(RESEND_TEST_FROM);
-}
-
 function smtpConfigured(): boolean {
   return Boolean(
     cleanEnv(process.env.SMTP_HOST) &&
       cleanEnv(process.env.SMTP_USER) &&
-      smtpPass() &&
-      cleanEnv(process.env.SMTP_FROM || process.env.RESEND_FROM_EMAIL),
+      smtpPass(),
   );
 }
 
-function resendProductionConfigured(): boolean {
-  const key = cleanEnv(process.env.RESEND_API_KEY);
-  const from = cleanEnv(process.env.RESEND_FROM_EMAIL);
-  return Boolean(key && from && !isResendTestFrom(from));
+/** True when Gmail SMTP can send to any recipient. */
+export function isProductionEmailReady(): boolean {
+  return smtpConfigured();
 }
 
-/** True when we can send to any recipient (verified Resend domain or SMTP). */
-export function isProductionEmailReady(): boolean {
-  return resendProductionConfigured() || smtpConfigured();
+function errMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === "string") return err;
+  if (err && typeof err === "object" && "message" in err) {
+    return String((err as { message: unknown }).message);
+  }
+  return String(err ?? "");
 }
 
 async function deliverViaSmtp(input: {
@@ -108,112 +101,37 @@ async function deliverViaSmtp(input: {
   return { id: String(info.messageId || `smtp-${Date.now()}`) };
 }
 
-async function deliverViaResend(input: {
-  to: string;
-  from: string;
-  template: EmailTemplate;
-  replyTo?: string;
-}): Promise<{ id: string }> {
-  const apiKey = cleanEnv(process.env.RESEND_API_KEY);
-  if (!apiKey) {
-    throw new EmailConfigurationError("RESEND_API_KEY is not configured.");
-  }
-
-  const resend = new Resend(apiKey);
-  try {
-    const { data, error } = await resend.emails.send({
-      from: input.from,
-      to: input.to,
-      replyTo: input.replyTo,
-      subject: input.template.subject,
-      html: input.template.html,
-      text: input.template.text,
-    });
-
-    if (error || !data?.id) {
-      const detail = `${error?.message ?? ""} ${JSON.stringify(error ?? {})}`.toLowerCase();
-      console.error("[email] Resend send failed:", error?.message ?? error);
-      const testModeOnly =
-        detail.includes("only send testing emails to your own email") ||
-        detail.includes("you can only send testing emails") ||
-        detail.includes("verify a domain");
-      throw new EmailDeliveryError(
-        testModeOnly ? "resend_test_mode" : "send_failed",
-      );
-    }
-
-    return { id: data.id };
-  } catch (error) {
-    if (error instanceof EmailDeliveryError) throw error;
-    const detail = errMessage(error).toLowerCase();
-    console.error("[email] Resend threw:", errMessage(error));
-    const testModeOnly =
-      detail.includes("only send testing emails to your own email") ||
-      detail.includes("you can only send testing emails") ||
-      detail.includes("verify a domain");
-    throw new EmailDeliveryError(
-      testModeOnly ? "resend_test_mode" : "send_failed",
-    );
-  }
-}
-
-function errMessage(err: unknown): string {
-  if (err instanceof Error) return err.message;
-  if (typeof err === "string") return err;
-  if (err && typeof err === "object" && "message" in err) {
-    return String((err as { message: unknown }).message);
-  }
-  return String(err ?? "");
-}
-
 async function deliver(input: {
   to: string;
   template: EmailTemplate;
   replyTo?: string;
 }): Promise<{ id: string; deliveredTo: string }> {
+  if (!smtpConfigured()) {
+    throw new EmailConfigurationError(
+      "Gmail SMTP is not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASS.",
+    );
+  }
+
   const to = requireEmail(input.to, "Recipient");
   const replyTo = input.replyTo
     ? requireEmail(input.replyTo, "Reply-to")
     : undefined;
+  const from = cleanEnv(process.env.SMTP_FROM) || DEFAULT_FROM;
 
-  if (smtpConfigured()) {
-    const from =
-      cleanEnv(process.env.SMTP_FROM) ||
-      "UNK AI <hello.unkai@gmail.com>";
-    try {
-      const sent = await deliverViaSmtp({
-        to,
-        from,
-        template: input.template,
-        replyTo,
-      });
-      return { ...sent, deliveredTo: to };
-    } catch (error) {
-      console.error("[email] Gmail SMTP send failed:", errMessage(error));
-      throw error instanceof EmailDeliveryError
-        ? error
-        : new EmailDeliveryError("send_failed");
-    }
+  try {
+    const sent = await deliverViaSmtp({
+      to,
+      from,
+      template: input.template,
+      replyTo,
+    });
+    return { ...sent, deliveredTo: to };
+  } catch (error) {
+    console.error("[email] Gmail SMTP send failed:", errMessage(error));
+    throw error instanceof EmailDeliveryError
+      ? error
+      : new EmailDeliveryError("send_failed");
   }
-
-  const apiKey = cleanEnv(process.env.RESEND_API_KEY);
-  if (!apiKey) {
-    throw new EmailConfigurationError("RESEND_API_KEY is not configured.");
-  }
-
-  const configuredFrom = cleanEnv(process.env.RESEND_FROM_EMAIL);
-  const testMode = !configuredFrom || isResendTestFrom(configuredFrom);
-  const from = testMode
-    ? `UNK AI <${RESEND_TEST_FROM}>`
-    : configuredFrom;
-
-  const sent = await deliverViaResend({
-    to,
-    from,
-    template: input.template,
-    replyTo,
-  });
-  return { ...sent, deliveredTo: to };
 }
 
 export function sendWelcomeEmail(input: { to: string; name: string }) {

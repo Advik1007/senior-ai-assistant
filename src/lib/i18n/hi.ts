@@ -10,9 +10,9 @@ const hiOverrides: Partial<TranslationCatalog> = {
   "language.continue": "आगे बढ़ें",
   "auth.login": "UNK AI में साइन इन करें",
   "auth.loginSteps":
-    "1. अपना ईमेल लिखें।\n2. हमारा सुरक्षा ईमेल खोलें।\n3. “हाँ, यह मैं था/थी” पर टैप करें।",
+    "1. अपना ईमेल और पासवर्ड लिखें।\n2. साइन इन पर टैप करें।",
   "auth.loginSafetyHint":
-    "आपकी सुरक्षा के लिए, हम ईमेल पर एक सुरक्षित लिंक भेजते हैं।",
+    "अपने UNK AI खाते के ईमेल और पासवर्ड से साइन इन करें।",
   "auth.sendingEmailLink": "सुरक्षा जाँच भेजी जा रही है…",
   "auth.email": "ईमेल",
   "auth.loginButton": "साइन इन करें",
@@ -33,7 +33,7 @@ const hiOverrides: Partial<TranslationCatalog> = {
   "auth.error.sendFailed":
     "ईमेल नहीं भेजा जा सका। पता जाँचें और फिर कोशिश करें।",
   "auth.error.notConfigured":
-    "ईमेल अभी सेट नहीं है। .env.local में RESEND_API_KEY और AUTH_SECRET जोड़ें, फिर ऐप दोबारा चालू करें।",
+    "ईमेल अभी सेट नहीं है। SMTP_HOST, SMTP_USER, SMTP_PASS और AUTH_SECRET जोड़ें, फिर ऐप दोबारा चालू करें।",
   "auth.changeLanguage": "भाषा बदलें",
   "auth.setupCallsTitle": "अपनी कॉल सेट करें",
   "auth.setupCallsHint":

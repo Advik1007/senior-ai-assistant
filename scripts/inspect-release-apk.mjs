@@ -29,7 +29,7 @@ try {
 
 const findings = [];
 const suspicious =
-  /AUTH_SECRET|RESEND_API_KEY|TURSO_AUTH|GEMINI_API|AI_API_KEY|BEGIN (RSA |OPENSSH )?PRIVATE|sk-[a-zA-Z0-9]{20,}|password\s*=\s*['\"][^'\"]+['\"]|INBOX_SECRET/i;
+  /AUTH_SECRET|SMTP_PASS|TURSO_AUTH|GEMINI_API|AI_API_KEY|BEGIN (RSA |OPENSSH )?PRIVATE|sk-[a-zA-Z0-9]{20,}|password\s*=\s*['\"][^'\"]+['\"]|INBOX_SECRET/i;
 
 function walk(dir) {
   for (const name of fs.readdirSync(dir)) {

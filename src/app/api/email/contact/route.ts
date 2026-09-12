@@ -89,7 +89,7 @@ export async function POST(request: Request) {
       await sendContactEmail({ name, email, phone, message });
     } catch (error) {
       if (error instanceof EmailConfigurationError) {
-        // Saved to inbox even if CONTACT_EMAIL / Resend is not set.
+        // Saved to inbox even if CONTACT_EMAIL / SMTP is not set.
         return NextResponse.json({ ok: true, emailed: false });
       }
       if (error instanceof EmailDeliveryError) {

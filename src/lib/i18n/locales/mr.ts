@@ -18,7 +18,7 @@ const overrides: TranslationCatalog = {
   "auth.forgotPassword": "पासवर्ड विसरलात?",
   "auth.createAccount": "खाते तयार करा",
   "auth.continueGuest": "पाहुणे म्हणून पुढे जा",
-  "auth.loginSafetyHint": "तुमच्या सुरक्षिततेसाठी, साइन इन तुम्हीच करत आहात याची खात्री करण्यासाठी आम्ही सुरक्षित लिंक ईमेल करतो.",
+  "auth.loginSafetyHint": "तुमचा ईमेल आणि पासवर्ड वापरून साइन इन करा.",
   "auth.emailLinkButton": "सुरक्षा तपासणी पाठवा",
   "auth.sendingEmailLink": "सुरक्षा तपासणी पाठवत आहे…",
   "auth.usePasswordInstead": "त्याऐवजी पासवर्डने साइन इन करा",

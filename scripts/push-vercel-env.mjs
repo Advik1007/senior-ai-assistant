@@ -18,8 +18,6 @@ const OPTIONAL = [
   "SMTP_USER",
   "SMTP_PASS",
   "SMTP_FROM",
-  "RESEND_API_KEY",
-  "RESEND_FROM_EMAIL",
 ];
 
 function loadEnvLocal() {

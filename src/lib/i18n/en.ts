@@ -14,7 +14,7 @@ const en: TranslationCatalog = {
   "auth.welcomeSteps":
     "1. Sign in or Create account\n2. Add contacts, routine & medicines\n3. Celebrate — then open Home",
   "auth.loginSteps":
-    "1. Enter your email.\n2. Open the safety email we send you.\n3. Tap “Yes, it was me” to open UNK AI.",
+    "1. Enter your email and password.\n2. Tap Sign in.",
   "auth.signup": "Create account",
   "auth.email": "Email",
   "auth.password": "Password",
@@ -25,7 +25,7 @@ const en: TranslationCatalog = {
   "auth.continueGuest": "Continue as Guest",
   "auth.loginButton": "Sign in",
   "auth.loginSafetyHint":
-    "For your safety, we email you a secure link to confirm it was really you signing in.",
+    "Sign in with the email and password for your UNK AI account.",
   "auth.emailLinkButton": "Send safety check",
   "auth.sendingEmailLink": "Sending safety check…",
   "auth.usePasswordInstead": "Sign in with password instead",
@@ -59,9 +59,9 @@ const en: TranslationCatalog = {
   "auth.error.sendFailed":
     "We could not send the email. Check the address and try again.",
   "auth.error.resendTestMode":
-    "Email is not ready to send to every inbox yet. Add a free Gmail App Password as SMTP_PASS for hello.unkai@gmail.com, then Redeploy.",
+    "Login email is not configured. Add Gmail SMTP settings, then Redeploy.",
   "auth.error.notConfigured":
-    "Login email is not configured on the server. In Vercel add RESEND_API_KEY and RESEND_FROM_EMAIL=UNK AI <onboarding@resend.dev> (keep AUTH_SECRET), then Redeploy.",
+    "Login email is not configured on the server. In Vercel add SMTP_HOST, SMTP_USER, SMTP_PASS, SMTP_FROM, and AUTH_SECRET, then Redeploy.",
   "auth.error.dbUnavailable":
     "Account storage is not ready on this server. Add TURSO_DATABASE_URL and TURSO_AUTH_TOKEN in Vercel Environment Variables, then Redeploy.",
   "auth.changeLanguage": "Change language",

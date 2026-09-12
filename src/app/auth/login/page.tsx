@@ -43,9 +43,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState(profile.email);
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [emailLinkLoading, setEmailLinkLoading] = useState(false);
   const [error, setError] = useState("");
-  const [info, setInfo] = useState("");
 
   async function signInWithPassword() {
     const trimmed = normalizeEmailInput(email);
@@ -63,7 +61,6 @@ export default function LoginPage() {
 
     setLoading(true);
     setError("");
-    setInfo("");
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -102,39 +99,6 @@ export default function LoginPage() {
       setError(strings.authErrorGeneric);
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function sendSafetyEmail() {
-    const trimmed = normalizeEmailInput(email);
-    if (trimmed !== email.trim().toLowerCase()) {
-      setEmail(trimmed);
-    }
-    if (!EMAIL_PATTERN.test(trimmed)) {
-      setError(strings.authErrorInvalidEmail);
-      return;
-    }
-
-    setEmailLinkLoading(true);
-    setError("");
-    setInfo("");
-    try {
-      const res = await fetch("/api/auth/send-link", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmed, lang }),
-      });
-      const data = (await res.json().catch(() => ({}))) as { message?: string };
-      if (!res.ok) {
-        setError(authErrorMessage(data.message, strings));
-        return;
-      }
-      setProfile({ ...profile, email: trimmed });
-      router.replace(`/auth/check-email?email=${encodeURIComponent(trimmed)}`);
-    } catch {
-      setError(strings.authErrorGeneric);
-    } finally {
-      setEmailLinkLoading(false);
     }
   }
 
@@ -199,7 +163,6 @@ export default function LoginPage() {
         />
       </div>
 
-      {info ? <OnboardingStatus tone="success">{info}</OnboardingStatus> : null}
       {error ? <OnboardingStatus tone="error">{error}</OnboardingStatus> : null}
 
       <BigButton
@@ -208,16 +171,6 @@ export default function LoginPage() {
         onClick={() => void signInWithPassword()}
       >
         {loading ? strings.authLoggingIn : strings.authLoginButton}
-      </BigButton>
-
-      <BigButton
-        tone="muted"
-        disabled={emailLinkLoading}
-        onClick={() => void sendSafetyEmail()}
-      >
-        {emailLinkLoading
-          ? strings.authSendingEmailLink
-          : strings.authEmailLinkButton}
       </BigButton>
 
       <BigButton href="/auth/signup" tone="call">

@@ -13,9 +13,7 @@ const TOKEN_TTL = "24h";
 
 function secretKey(): Uint8Array {
   const secret =
-    process.env.AUTH_SECRET ||
-    process.env.DEVICE_ALERT_SECRET ||
-    process.env.RESEND_API_KEY;
+    process.env.AUTH_SECRET || process.env.DEVICE_ALERT_SECRET;
   if (!secret) {
     throw new Error("AUTH_SECRET must be configured for email login.");
   }

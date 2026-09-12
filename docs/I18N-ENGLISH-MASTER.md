@@ -29,7 +29,7 @@ Keep UNK / UNK AI unchanged.
 - `auth.welcomeTitle`: Welcome to UNK AI
 - `auth.welcomeBody`: Next: Sign in or create an account. Then set up your contacts, daily routine, and medicines.
 - `auth.welcomeSteps`: 1. Sign in or Create account\n2. Add contacts, routine & medicines\n3. Celebrate — then open Home
-- `auth.loginSteps`: 1. Enter your email.\n2. Open the safety email we send you.\n3. Tap “Yes, it was me” to open UNK AI.
+- `auth.loginSteps`: 1. Enter your email and password. 2. Tap Sign in.
 - `auth.signup`: Create account
 - `auth.email`: Email
 - `auth.password`: Password
@@ -39,7 +39,7 @@ Keep UNK / UNK AI unchanged.
 - `auth.createAccount`: Create account
 - `auth.continueGuest`: Continue as Guest
 - `auth.loginButton`: Sign in
-- `auth.loginSafetyHint`: For your safety, we email you a secure link to confirm it was really you signing in.
+- `auth.loginSafetyHint`: Sign in with the email and password for your UNK AI account.
 - `auth.emailLinkButton`: Send safety check
 - `auth.sendingEmailLink`: Sending safety check…
 - `auth.usePasswordInstead`: Sign in with password instead
@@ -70,8 +70,8 @@ Keep UNK / UNK AI unchanged.
 - `auth.error.generic`: Something went wrong. Please try again.
 - `auth.error.tokenInvalid`: This link is invalid or has expired.
 - `auth.error.sendFailed`: We could not send the email. Check the address and try again.
-- `auth.error.resendTestMode`: Email is still in test mode. Ask the developer to verify a domain in Resend and set RESEND_FROM_EMAIL (not onboarding@resend.dev), or configure SMTP. Until then, use Sign in with password.
-- `auth.error.notConfigured`: Login email is not configured on the server. In Vercel → senior-ai-assistant → Settings → Environment Variables (Production), add RESEND_API_KEY + a verified RESEND_FROM_EMAIL (or SMTP_*), AUTH_SECRET, and APP_URL, then Redeploy.
+- `auth.error.resendTestMode`: Login email is not configured. Add Gmail SMTP settings, then Redeploy.
+- `auth.error.notConfigured`: Login email is not configured on the server. In Vercel add SMTP_HOST, SMTP_USER, SMTP_PASS, SMTP_FROM, AUTH_SECRET, and APP_URL, then Redeploy.
 - `auth.error.dbUnavailable`: Account storage is not ready on this server. Add TURSO_DATABASE_URL and TURSO_AUTH_TOKEN in Vercel Environment Variables, then Redeploy.
 - `auth.changeLanguage`: Change language
 - `auth.setupCallsTitle`: Set up your calls

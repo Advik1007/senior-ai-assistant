@@ -39,22 +39,22 @@ UNK AI can run as an Android app (Capacitor WebView shell). See **[ANDROID.md](.
 For voice, use Chrome or Edge and allow the microphone. Add family phone
 numbers in **Settings** before calling.
 
-## Resend email
+## Email (Gmail SMTP)
 
 Copy `.env.example` to `.env.local` and configure:
 
 ```env
-RESEND_API_KEY=
-RESEND_FROM_EMAIL="UNK AI <onboarding@resend.dev>"
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=hello.unkai@gmail.com
+SMTP_FROM="UNK AI <hello.unkai@gmail.com>"
+SMTP_PASS=
 CONTACT_EMAIL=
-EMAIL_TEST_RECIPIENT=
 APP_URL=http://127.0.0.1:43141
 ```
 
-- Use a newly created Resend key for `RESEND_API_KEY`.
-- `onboarding@resend.dev` works for Resend test mode. For production, verify your own domain at [resend.com/domains](https://resend.com/domains) and use an address on that domain.
+- `SMTP_PASS` is a 16-character [Gmail App Password](https://myaccount.google.com/apppasswords), not the normal Gmail password.
 - `CONTACT_EMAIL` receives messages submitted on the Help page.
-- `EMAIL_TEST_RECIPIENT` receives development test emails.
 - `.env.local` is ignored by Git and must never be committed.
 
 Restart the development server after changing environment variables. To test
@@ -67,16 +67,10 @@ curl -X POST http://127.0.0.1:43141/api/email/test \
 
 curl -X POST http://127.0.0.1:43141/api/email/test \
   -H "Content-Type: application/json" \
-  -d '{"kind":"verification"}'
-
-curl -X POST http://127.0.0.1:43141/api/email/test \
-  -H "Content-Type: application/json" \
   -d '{"kind":"password-reset"}'
 ```
 
-The test endpoint is disabled in production. Production authentication code
-should call the server-only functions in `src/lib/email/service.ts` after it
-creates and stores expiring, single-use verification or password-reset tokens.
+The test endpoint is disabled in production.
 
 ## Deploy frontend to Vercel
 
@@ -88,7 +82,7 @@ static hosting).
 3. Set environment variables (Production and Preview):
    - `APP_URL` = `https://senior-ai-assistant-git-main-advik1007.vercel.app`
    - `AUTH_SECRET`, `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
-   - Optional: `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `CONTACT_EMAIL`
+   - Optional: `CONTACT_EMAIL`
 4. Redeploy after changing env vars.
 
 ## Android app

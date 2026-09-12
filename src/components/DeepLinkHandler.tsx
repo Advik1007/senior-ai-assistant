@@ -6,8 +6,8 @@ import { Capacitor } from "@capacitor/core";
 import { pathFromDeepLinkUrl } from "@/lib/deep-link";
 
 /**
- * When the safety-check email opens the app via ai.unk.app://…,
- * navigate the WebView to the matching /auth/verify (or device) route.
+ * When an email or shortcut opens the app via ai.unk.app://…,
+ * navigate the WebView to that path.
  */
 export function DeepLinkHandler() {
   const router = useRouter();

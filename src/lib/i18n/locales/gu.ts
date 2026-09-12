@@ -20,7 +20,7 @@ const overrides: TranslationCatalog = {
   "auth.forgotPassword": "પાસવર્ડ ભૂલી ગયા?",
   "auth.createAccount": "ખાતું બનાવો",
   "auth.continueGuest": "મહેમાન તરીકે આગળ વધો",
-  "auth.loginSafetyHint": "તમારી સુરક્ષા માટે, સાઇન ઇન તમે જ કરો છો તેની ખાતરી કરવા અમે સુરક્ષિત લિંક ઈમેલ કરીએ છીએ.",
+  "auth.loginSafetyHint": "તમારા ઈમેલ અને પાસવર્ડથી સાઇન ઇન કરો.",
   "auth.emailLinkButton": "સુરક્ષા તપાસ મોકલો",
   "auth.sendingEmailLink": "સુરક્ષા તપાસ મોકલાઈ રહી છે…",
   "auth.usePasswordInstead": "તેના બદલે પાસવર્ડથી સાઇન ઇન કરો",

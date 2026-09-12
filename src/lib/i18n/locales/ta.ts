@@ -18,7 +18,7 @@ const overrides: TranslationCatalog = {
   "auth.forgotPassword": "கடவுச்சொல் மறந்துவிட்டதா?",
   "auth.createAccount": "கணக்கு உருவாக்கவும்",
   "auth.continueGuest": "விருந்தினராகத் தொடரவும்",
-  "auth.loginSafetyHint": "உங்கள் பாதுகாப்பிற்காக, உள்நுழைவது நீங்கள்தான் என்பதை உறுதிப்படுத்த பாதுகாப்பான இணைப்பை மின்னஞ்சலில் அனுப்புகிறோம்.",
+  "auth.loginSafetyHint": "உங்கள் மின்னஞ்சல் மற்றும் கடவுச்சொல்லால் உள்நுழையவும்.",
   "auth.emailLinkButton": "பாதுகாப்புச் சரிபார்ப்பை அனுப்பவும்",
   "auth.sendingEmailLink": "பாதுகாப்புச் சரிபார்ப்பு அனுப்பப்படுகிறது…",
   "auth.usePasswordInstead": "கடவுச்சொல்லைப் பயன்படுத்தி உள்நுழையவும்",

@@ -25,9 +25,7 @@ const usedTokenHashes = new Set<string>();
 
 function secretKey(): Uint8Array {
   const secret =
-    process.env.DEVICE_ALERT_SECRET ||
-    process.env.AUTH_SECRET ||
-    process.env.RESEND_API_KEY;
+    process.env.DEVICE_ALERT_SECRET || process.env.AUTH_SECRET;
   if (!secret) {
     throw new Error("DEVICE_ALERT_SECRET or AUTH_SECRET must be configured.");
   }
