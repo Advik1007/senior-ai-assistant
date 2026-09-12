@@ -1,6 +1,7 @@
 "use client";
 
 import { Mic, Volume2 } from "lucide-react";
+import { useReliableTap } from "@/lib/reliable-tap";
 
 export type VoicePhase = "idle" | "listening" | "speaking" | "processing";
 
@@ -72,12 +73,16 @@ export function VoiceStatus({
   const shared =
     `flex min-h-24 w-full items-center gap-4 rounded-2xl border-2 px-4 py-3 text-left ${box}`;
 
+  const tap = useReliableTap(onPress ? () => onPress() : undefined);
+
   if (onPress) {
     return (
       <button
         type="button"
         aria-live="polite"
-        onClick={onPress}
+        onPointerDown={tap.onPointerDown}
+        onPointerUp={tap.onPointerUp}
+        onClick={tap.onClick}
         className={`${shared} cursor-pointer [touch-action:manipulation] active:brightness-95`}
       >
         {inner}

@@ -374,7 +374,7 @@ export function VoiceAssistant({
 
   function toggleMic() {
     const now = Date.now();
-    if (now - lastMicTapRef.current < 450) return;
+    if (now - lastMicTapRef.current < 1000) return;
     lastMicTapRef.current = now;
     if (phase === "listening" || micBusy) {
       stopListening();

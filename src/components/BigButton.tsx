@@ -2,13 +2,8 @@
 
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import {
-  useRef,
-  type ButtonHTMLAttributes,
-  type MouseEvent,
-  type PointerEvent,
-  type ReactNode,
-} from "react";
+import { useReliableTap } from "@/lib/reliable-tap";
+import { type ButtonHTMLAttributes, type ReactNode } from "react";
 
 type Tone = "primary" | "call" | "help" | "service" | "muted" | "gold";
 
@@ -47,7 +42,7 @@ export function BigButton({
   onClick,
   ...props
 }: Props) {
-  const tap = useRef({ x: 0, y: 0, at: 0 });
+  const tap = useReliableTap(onClick, props.disabled);
 
   const classes = cn(
     shared,
@@ -66,33 +61,6 @@ export function BigButton({
       <span className="pointer-events-none flex-1">{children}</span>
     </>
   );
-
-  function invoke(event: MouseEvent<HTMLButtonElement>) {
-    if (!onClick || props.disabled) return;
-    const now =
-      typeof performance !== "undefined" ? performance.now() : Date.now();
-    if (now - tap.current.at < 400) return;
-    tap.current.at = now;
-    onClick(event);
-  }
-
-  function onPointerDown(event: PointerEvent<HTMLButtonElement>) {
-    tap.current = { x: event.clientX, y: event.clientY, at: tap.current.at };
-    props.onPointerDown?.(event);
-  }
-
-  function onPointerUp(event: PointerEvent<HTMLButtonElement>) {
-    props.onPointerUp?.(event);
-    if (event.button > 0) return;
-    const dx = event.clientX - tap.current.x;
-    const dy = event.clientY - tap.current.y;
-    if (dx * dx + dy * dy > 400) return;
-    invoke(event as unknown as MouseEvent<HTMLButtonElement>);
-  }
-
-  function onButtonClick(event: MouseEvent<HTMLButtonElement>) {
-    invoke(event);
-  }
 
   if (href) {
     const external =
@@ -123,9 +91,15 @@ export function BigButton({
       type="button"
       className={classes}
       {...props}
-      onPointerDown={onPointerDown}
-      onPointerUp={onPointerUp}
-      onClick={onButtonClick}
+      onPointerDown={(event) => {
+        tap.onPointerDown(event);
+        props.onPointerDown?.(event);
+      }}
+      onPointerUp={(event) => {
+        props.onPointerUp?.(event);
+        tap.onPointerUp(event);
+      }}
+      onClick={tap.onClick}
     >
       {inner}
     </button>

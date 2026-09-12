@@ -29,6 +29,7 @@ export function SetupVoiceField({
   const [listening, setListening] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
   const genRef = useRef(0);
+  const lastTapRef = useRef(0);
 
   const stopListening = useCallback(() => {
     genRef.current += 1;
@@ -89,7 +90,13 @@ export function SetupVoiceField({
         <BigButton
           tone={listening ? "help" : "gold"}
           icon={<Mic className="size-7" />}
-          onClick={() => (listening ? stopListening() : startListening())}
+          onClick={() => {
+            const now = Date.now();
+            if (now - lastTapRef.current < 1000) return;
+            lastTapRef.current = now;
+            if (listening) stopListening();
+            else startListening();
+          }}
         >
           {listening ? stopLabel : listenLabel}
         </BigButton>

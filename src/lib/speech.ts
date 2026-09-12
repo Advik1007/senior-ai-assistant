@@ -112,7 +112,8 @@ function classifyNativeError(message: string): ListenError {
     m.includes("already running") ||
     m.includes("busy") ||
     m.includes("in progress") ||
-    m.includes("recognizer_busy")
+    m.includes("recognizer_busy") ||
+    m.includes("recognition service busy")
   ) {
     return "busy";
   }
@@ -135,12 +136,14 @@ function classifyNativeError(message: string): ListenError {
     return "no-speech";
   }
   // Android popup dismiss is Activity.RESULT_CANCELED === 0.
+  // Double-tap / Studio delayed-click also force-stops the session.
   if (
     m === "0" ||
     m.includes("result_canceled") ||
     m.includes("canceled") ||
     m.includes("cancelled") ||
-    m.includes("aborted")
+    m.includes("aborted") ||
+    m.includes("stopped before final")
   ) {
     return "canceled";
   }
@@ -204,6 +207,8 @@ async function stopNativeIfListening(
 
 async function waitForTtsRelease(): Promise<void> {
   stopSpeaking();
+  // Android keeps audio focus for a beat after speechSynthesis.cancel.
+  await sleep(280);
 }
 
 async function startNativeOnce(
@@ -235,7 +240,8 @@ async function startNativeOnce(
 
 /**
  * One-shot listen from a user tap.
- * Android: system “Speak now” dialog first (reliable), then inline recognizer.
+ * Android: inline SpeechRecognizer (the Google “Speak now” popup often returns
+ * canceled from a Capacitor WebView, especially when run from Android Studio).
  */
 export async function listenOnce(options: {
   lang: AppLanguage | string;
@@ -260,47 +266,44 @@ export async function listenOnce(options: {
 
   const SpeechRecognition = await loadNativeSpeech();
   if (SpeechRecognition) {
+    try {
+      const { available } = await SpeechRecognition.available();
+      if (!available) return { ok: false, error: "unavailable" };
+    } catch {
+      return { ok: false, error: "unavailable" };
+    }
+    if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
+
     await stopNativeIfListening(SpeechRecognition);
     if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
 
-    // System dialog first — works on most Android phones from a tap.
     let result = await startNativeOnce(SpeechRecognition, {
       language,
       prompt,
-      popup: true,
+      popup: false,
     });
     if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
     if (result.ok || result.error === "denied" || result.error === "no-speech") {
       return result;
     }
 
-    if (result.error === "busy") {
+    if (
+      result.error === "busy" ||
+      result.error === "canceled" ||
+      result.error === "failed"
+    ) {
       await forceStopNative(SpeechRecognition);
-      await sleep(220);
+      await sleep(450);
       if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
       result = await startNativeOnce(SpeechRecognition, {
         language,
         prompt,
-        popup: true,
+        popup: false,
       });
       if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
-      if (result.ok || result.error === "denied" || result.error === "no-speech") {
-        return result;
-      }
     }
 
-    // Inline fallback when the Google dialog did not open.
-    await sleep(120);
-    if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
-    const inline = await startNativeOnce(SpeechRecognition, {
-      language,
-      prompt,
-      popup: false,
-    });
-    if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
-    if (inline.ok) return inline;
-    if (inline.error === "denied" || inline.error === "no-speech") return inline;
-    return inline.error === "canceled" ? result : inline;
+    return result;
   }
 
   const rec = createBrowserSpeechRecognition();
