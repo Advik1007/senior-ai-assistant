@@ -24,7 +24,7 @@ export type SpeechRecognitionEventLike = {
   results: ArrayLike<ArrayLike<{ transcript: string }>>;
 };
 
-export type MicPermission = "granted" | "denied" | "unavailable";
+export type MicPermission = "granted" | "prompted" | "denied" | "unavailable";
 
 export type ListenError =
   | "denied"
@@ -32,6 +32,7 @@ export type ListenError =
   | "no-speech"
   | "busy"
   | "canceled"
+  | "needs-tap"
   | "failed";
 
 export type ListenOnceResult =
@@ -218,11 +219,11 @@ function requestNativeRecordAudio(): Promise<MicPermission> {
       const granted = Boolean(
         (event as CustomEvent<{ granted?: boolean }>).detail?.granted,
       );
-      finish(granted ? "granted" : "denied");
+      finish(granted ? "prompted" : "denied");
     };
     const timer = window.setTimeout(() => {
       try {
-        finish(bridge.hasMicPermission?.() ? "granted" : "denied");
+        finish(bridge.hasMicPermission?.() ? "prompted" : "denied");
       } catch {
         finish("denied");
       }
@@ -245,16 +246,20 @@ export async function ensureMicPermission(): Promise<MicPermission> {
     if (native === "denied") return "denied";
 
     const SpeechRecognition = await loadNativeSpeech();
-    if (!SpeechRecognition) return native === "granted" ? "granted" : "unavailable";
+    if (!SpeechRecognition) {
+      return native === "granted" || native === "prompted" ? native : "unavailable";
+    }
     try {
       let status = await SpeechRecognition.checkPermissions();
       if (status.speechRecognition !== "granted") {
         status = await SpeechRecognition.requestPermissions();
       }
-      if (status.speechRecognition === "granted") return "granted";
-      return native === "granted" ? "granted" : "denied";
+      if (status.speechRecognition !== "granted") {
+        return native === "granted" || native === "prompted" ? native : "denied";
+      }
+      return native === "prompted" ? "prompted" : "granted";
     } catch {
-      return native === "granted" ? "granted" : "unavailable";
+      return native === "granted" || native === "prompted" ? native : "unavailable";
     }
   }
 
@@ -519,6 +524,7 @@ async function startNativeOnce(
       partialResults: false,
       popup: options.popup,
       prompt: options.prompt,
+      allowForSilence: 2500,
     });
 
     const transcript = result.matches?.[0]?.trim() ?? "";
@@ -560,6 +566,7 @@ export async function listenOnce(options: {
     const permission = await ensureMicPermission();
     if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
     if (permission === "denied") return { ok: false, error: "denied" };
+    if (permission === "prompted") return { ok: false, error: "needs-tap" };
 
     const SpeechRecognition = await loadNativeSpeech();
     if (SpeechRecognition) {
@@ -569,45 +576,32 @@ export async function listenOnce(options: {
           await stopNativeIfListening(SpeechRecognition);
           if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
 
+          // Android's reliable STT is the system "Speak now" dialog.
           let result = await startNativeOnce(SpeechRecognition, {
+            language,
+            prompt,
+            popup: true,
+          });
+          if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
+          if (result.ok || result.error === "denied") return result;
+
+          await forceStopNative(SpeechRecognition);
+          await sleep(400);
+          if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
+
+          result = await startNativeOnce(SpeechRecognition, {
             language,
             prompt,
             popup: false,
           });
           if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
-          if (
-            result.ok ||
-            result.error === "denied" ||
-            result.error === "no-speech"
-          ) {
-            return result;
-          }
+          if (result.ok || result.error === "denied") return result;
 
-          if (
-            result.error === "busy" ||
-            result.error === "canceled" ||
-            result.error === "failed"
-          ) {
-            await forceStopNative(SpeechRecognition);
-            await sleep(450);
-            if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
-            result = await startNativeOnce(SpeechRecognition, {
-              language,
-              prompt,
-              popup: false,
-            });
-            if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
-            if (
-              result.ok ||
-              result.error === "denied" ||
-              result.error === "no-speech"
-            ) {
-              return result;
-            }
-          }
+          await forceStopNative(SpeechRecognition);
+          await sleep(250);
         }
       } catch {
-        // Native plugin missing — use website recorder below.
+        // Native plugin missing — use recorder below.
       }
     }
   } else if (hasWebsiteSpeechApi()) {
@@ -685,6 +679,7 @@ function createNativeSpeechRecognition(): SpeechRecognitionLike {
           "no-speech": "no-speech",
           busy: "network",
           canceled: "aborted",
+          "needs-tap": "aborted",
           failed: "network",
         };
         rec.onerror?.({ error: map[result.error] });

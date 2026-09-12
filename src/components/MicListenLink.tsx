@@ -6,6 +6,9 @@ import { useLayoutEffect, useRef } from "react";
 /**
  * Android WebView in this app fires taps on links, not on <button>.
  * The home tiles work because they are links. The mic must be a link too.
+ *
+ * Fire once per physical tap. pointerdown + click on the same press used to
+ * start listening then immediately stop it, so Android never got speech.
  */
 export function MicListenLink({
   listening,
@@ -19,6 +22,7 @@ export function MicListenLink({
   const onPressRef = useRef(onPress);
   onPressRef.current = onPress;
   const last = useRef(0);
+  const usedPointer = useRef(false);
 
   useLayoutEffect(() => {
     const el = document.getElementById("unk-mic-link");
@@ -27,22 +31,28 @@ export function MicListenLink({
     let opts: AddEventListenerOptions | null = null;
     const ready = window.setTimeout(() => {
       fire = (event: Event) => {
-        if (event.type === "click") event.preventDefault();
+        if (event.type === "click") {
+          event.preventDefault();
+          if (usedPointer.current) {
+            usedPointer.current = false;
+            return;
+          }
+        } else {
+          usedPointer.current = true;
+        }
         const now = Date.now();
-        if (now - last.current < 300) return;
+        if (now - last.current < 900) return;
         last.current = now;
         onPressRef.current();
       };
       opts = { capture: true };
       el.addEventListener("click", fire, opts);
-      el.addEventListener("touchstart", fire, opts);
       el.addEventListener("pointerdown", fire, opts);
-    }, 800);
+    }, 400);
     return () => {
       window.clearTimeout(ready);
       if (fire && opts) {
         el.removeEventListener("click", fire, opts);
-        el.removeEventListener("touchstart", fire, opts);
         el.removeEventListener("pointerdown", fire, opts);
       }
     };

@@ -149,6 +149,7 @@ export function VoiceAssistant({
   const handleUtteranceRef = useRef<(text: string) => void>(() => {});
   const startedRef = useRef(false);
   const listenGenRef = useRef(0);
+  const listenStartedAt = useRef(0);
 
   const addLog = useCallback((line: string) => {
     setLog((prev) => [...prev.slice(-6), line]);
@@ -360,6 +361,8 @@ export function VoiceAssistant({
         setMicHint("I did not catch that. Tap the mic and speak again.");
       } else if (result.error === "busy") {
         setMicHint("Microphone is busy. Wait a second, then tap again.");
+      } else if (result.error === "needs-tap") {
+        setMicHint("Microphone is allowed. Tap the gold button again, then speak.");
       } else if (result.error === "canceled") {
         setMicHint("Tap the gold button, then speak when the phone says it is listening.");
       } else {
@@ -373,10 +376,12 @@ export function VoiceAssistant({
 
   function toggleMic() {
     if (phase === "listening" || micBusy) {
+      if (Date.now() - listenStartedAt.current < 1000) return;
       stopListening();
       setPhase("idle");
       return;
     }
+    listenStartedAt.current = Date.now();
     startListening();
   }
 
