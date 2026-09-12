@@ -140,7 +140,6 @@ export function VoiceAssistant({
   const [voiceSupported, setVoiceSupported] = useState(true);
   const [micHint, setMicHint] = useState<string | null>(null);
   const [micBusy, setMicBusy] = useState(false);
-  const [nativeMic, setNativeMic] = useState(false);
 
   const pendingCallRef = useRef<Contact | null>(null);
   const offerFamilyRef = useRef(false);
@@ -393,53 +392,6 @@ export function VoiceAssistant({
   }, [startListening]);
 
   useEffect(() => {
-    const win = window as Window & { __UNK_NATIVE_MIC?: boolean };
-    if (win.__UNK_NATIVE_MIC) setNativeMic(true);
-
-    const onListening = () => {
-      setNativeMic(true);
-      setMicBusy(true);
-      setPhase("listening");
-      setMicHint(null);
-    };
-    const onIdle = () => {
-      setMicBusy(false);
-      setPhase("idle");
-    };
-    const onTranscript = (event: Event) => {
-      const text =
-        (event as CustomEvent<{ text?: string }>).detail?.text?.trim() ?? "";
-      setMicBusy(false);
-      setPhase("idle");
-      if (text) handleUtteranceRef.current(text);
-    };
-    const onError = (event: Event) => {
-      const code = (event as CustomEvent<{ text?: string }>).detail?.text ?? "";
-      setMicBusy(false);
-      setPhase("idle");
-      if (code === "no-speech") {
-        setMicHint("I did not catch that. Tap the gold bar at the bottom and speak.");
-      } else if (code === "unavailable") {
-        setVoiceSupported(false);
-        setMicHint("Speech recognition is not available on this phone. You can still type below.");
-      } else {
-        setMicHint("Could not hear you. Tap the gold bar at the bottom and try again.");
-      }
-    };
-
-    window.addEventListener("unk-native-listening", onListening);
-    window.addEventListener("unk-native-idle", onIdle);
-    window.addEventListener("unk-native-transcript", onTranscript);
-    window.addEventListener("unk-native-error", onError);
-    return () => {
-      window.removeEventListener("unk-native-listening", onListening);
-      window.removeEventListener("unk-native-idle", onIdle);
-      window.removeEventListener("unk-native-transcript", onTranscript);
-      window.removeEventListener("unk-native-error", onError);
-    };
-  }, []);
-
-  useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
     speak(greeting, false);
@@ -467,19 +419,13 @@ export function VoiceAssistant({
         idleLabel={strings.tapToSpeak}
       />
 
-      {!nativeMic ? (
-        <MicListenLink
-          listening={phase === "listening" || micBusy}
-          label={
-            phase === "listening" || micBusy ? strings.stop : strings.tapToSpeak
-          }
-          onPress={toggleMic}
-        />
-      ) : (
-        <p className="rounded-2xl bg-[#FFF4CC] p-4 text-xl font-semibold text-[#0B1F3A]">
-          Tap the gold bar at the bottom of the screen, then speak.
-        </p>
-      )}
+      <MicListenLink
+        listening={phase === "listening" || micBusy}
+        label={
+          phase === "listening" || micBusy ? strings.stop : strings.tapToSpeak
+        }
+        onPress={toggleMic}
+      />
 
       {!voiceSupported ? (
         <p className="rounded-2xl bg-[#FFF4CC] p-4 text-xl font-semibold text-[#0B1F3A]">
