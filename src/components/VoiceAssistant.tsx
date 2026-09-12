@@ -26,7 +26,11 @@ import { addRoutine } from "@/lib/storage/routines";
 import { useApp } from "@/components/providers/app-provider";
 import { BigButton } from "@/components/BigButton";
 import { ConfirmCallDialog } from "@/components/ConfirmCallDialog";
-import { VoiceStatus, type VoicePhase } from "@/components/VoiceStatus";
+import {
+  VoiceStatus,
+  micButtonTone,
+  type VoicePhase,
+} from "@/components/VoiceStatus";
 import { Textarea } from "@/components/ui/textarea";
 
 function applyCreateReminder(args: {
@@ -145,6 +149,7 @@ export function VoiceAssistant({
   const handleUtteranceRef = useRef<(text: string) => void>(() => {});
   const startedRef = useRef(false);
   const listenGenRef = useRef(0);
+  const lastMicTapRef = useRef(0);
 
   const addLog = useCallback((line: string) => {
     setLog((prev) => [...prev.slice(-6), line]);
@@ -357,7 +362,7 @@ export function VoiceAssistant({
       } else if (result.error === "busy") {
         setMicHint("Microphone is busy. Wait a second, then tap again.");
       } else if (result.error === "canceled") {
-        // User backed out of the system dialog — stay quiet.
+        setMicHint("Tap the gold button, then speak when the phone says it is listening.");
       } else {
         setMicHint(
           "Could not start the microphone. Check Microphone permission, then tap again.",
@@ -367,6 +372,17 @@ export function VoiceAssistant({
     })();
   }, [prefs.language]);
 
+  function toggleMic() {
+    const now = Date.now();
+    if (now - lastMicTapRef.current < 450) return;
+    lastMicTapRef.current = now;
+    if (phase === "listening" || micBusy) {
+      stopListening();
+      setPhase("idle");
+    } else {
+      startListening();
+    }
+  }
 
   useEffect(() => {
     pendingCallRef.current = pendingCall;
@@ -383,8 +399,6 @@ export function VoiceAssistant({
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
-    // Do NOT auto-start the mic after greeting — Android requires a real tap
-    // for RECORD_AUDIO / speech dialog. User taps the gold mic button.
     speak(greeting, false);
     return () => {
       stopSpeaking();
@@ -408,6 +422,7 @@ export function VoiceAssistant({
         listeningLabel={strings.listening}
         speakingLabel={strings.speaking}
         idleLabel={strings.tapToSpeak}
+        onPress={toggleMic}
       />
 
       {!voiceSupported ? (
@@ -438,16 +453,9 @@ export function VoiceAssistant({
       </div>
 
       <BigButton
-        tone={phase === "listening" ? "help" : "gold"}
+        tone={micButtonTone(phase, micBusy)}
         icon={<Mic className="size-7" />}
-        onClick={() => {
-          if (phase === "listening" || micBusy) {
-            stopListening();
-            setPhase("idle");
-          } else {
-            startListening();
-          }
-        }}
+        onClick={toggleMic}
       >
         {phase === "listening" || micBusy ? strings.stop : strings.tapToSpeak}
       </BigButton>

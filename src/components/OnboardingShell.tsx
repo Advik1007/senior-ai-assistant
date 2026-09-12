@@ -42,7 +42,7 @@ export function OnboardingShell({
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 py-5 sm:px-6">
+      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 py-5 sm:px-6">
         <div className="flex flex-1 flex-col rounded-2xl bg-white p-4 sm:p-6">
           <h1 className="text-2xl font-bold leading-tight tracking-tight text-[#0B1F3A] sm:text-3xl">
             {title}

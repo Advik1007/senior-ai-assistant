@@ -2,7 +2,9 @@ import type { Metadata, Viewport } from "next";
 import { Atkinson_Hyperlegible } from "next/font/google";
 import { AppProvider } from "@/components/providers/app-provider";
 import { DeepLinkHandler } from "@/components/DeepLinkHandler";
+import { NativeBackHandler } from "@/components/NativeBackHandler";
 import { OnboardingGate } from "@/components/OnboardingGate";
+import { ReminderSync } from "@/components/ReminderSync";
 import { SplashReady } from "@/components/SplashReady";
 import { ThemeSync } from "@/components/ThemeSync";
 import "./globals.css";
@@ -36,12 +38,14 @@ export const viewport: Viewport = {
   themeColor: "#0B1F3A",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${readable.variable} antialiased`}>
       <body className="min-h-dvh bg-[#E8EEF5] font-sans text-[#0B1F3A]">
         <AppProvider>
           <SplashReady />
+          <NativeBackHandler />
+          <ReminderSync />
           <DeepLinkHandler />
           <ThemeSync />
           <OnboardingGate>{children}</OnboardingGate>

@@ -54,26 +54,43 @@ export function loadPreferences(): AccessibilityPreferences {
  * Update prefs in memory immediately; debounce disk write.
  * Use emit=false while typing drafts so the whole app doesn't re-render.
  */
+function samePrefs(
+  a: AccessibilityPreferences,
+  b: AccessibilityPreferences,
+): boolean {
+  return (
+    a.textSize === b.textSize &&
+    a.highContrast === b.highContrast &&
+    a.accessibilityMode === b.accessibilityMode &&
+    a.voiceSpeed === b.voiceSpeed &&
+    a.language === b.language
+  );
+}
+
 export function savePreferences(
   prefs: AccessibilityPreferences,
   opts?: { emit?: boolean; flush?: boolean },
 ): void {
+  const previous = prefsCache;
   prefsCache = prefs;
   const emit = opts?.emit !== false;
   const flush = opts?.flush === true;
+  const unchanged = Boolean(previous && samePrefs(previous, prefs));
 
   const persist = () => {
     prefsWriteTimer = null;
     writeJson(PREFS_KEY, prefsCache!);
   };
 
-  if (prefsWriteTimer) clearTimeout(prefsWriteTimer);
-  if (flush) {
-    persist();
-  } else {
-    prefsWriteTimer = setTimeout(persist, PERSIST_MS);
+  if (!unchanged) {
+    if (prefsWriteTimer) clearTimeout(prefsWriteTimer);
+    if (flush) {
+      persist();
+    } else {
+      prefsWriteTimer = setTimeout(persist, PERSIST_MS);
+    }
   }
-  if (emit) emitStore();
+  if (emit && !unchanged) emitStore();
 }
 
 export function getProfileSnapshot(): UserProfile {

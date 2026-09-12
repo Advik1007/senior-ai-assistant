@@ -33,6 +33,9 @@ export function loadMedicalProfile(): MedicalProfile {
 
 export function saveMedicalProfile(profile: MedicalProfile): void {
   writeJson(KEY, profile);
+  void import("@/lib/reminders")
+    .then(({ queueReminderSync }) => queueReminderSync())
+    .catch(() => undefined);
 }
 
 export function addMedicine(

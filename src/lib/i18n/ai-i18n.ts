@@ -2,7 +2,7 @@ import type { AppLanguage } from "@/lib/languages";
 import type { TranslationCatalog } from "@/lib/i18n/types";
 
 /** AI spoken replies + critical home labels for every supported language. */
-const packs: Record<Exclude<AppLanguage, "en">, Partial<TranslationCatalog>> = {
+const packs: Partial<Record<Exclude<AppLanguage, "en">, Partial<TranslationCatalog>>> = {
   hi: {
     "home.talk": "UNK से बात करें",
     "home.help": "मदद",

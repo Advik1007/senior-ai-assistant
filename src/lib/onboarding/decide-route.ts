@@ -206,13 +206,14 @@ export function resolveAppRoute(input: ResolveRouteInput): RouteDecision {
   }
 
   if (authStatus === "error") {
+    // Treat like anonymous — never cover the whole app with an error wall.
     if (floor === "language" && !isLanguagePath(pathname)) {
       return { allow: false, redirect: LANGUAGE_PATH, sessionError: false };
     }
-    if (floor !== "language" && isLanguagePath(pathname)) {
-      return { allow: false, redirect: AUTH_PATH, sessionError: false };
+    if (isLanguagePath(pathname) || isAuthPath(pathname)) {
+      return { allow: true, redirect: null, sessionError: false };
     }
-    return { allow: true, redirect: null, sessionError: true };
+    return { allow: false, redirect: AUTH_PATH, sessionError: false };
   }
 
   if (authStatus === "authenticated") {

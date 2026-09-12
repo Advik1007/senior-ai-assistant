@@ -59,9 +59,9 @@ const en: TranslationCatalog = {
   "auth.error.sendFailed":
     "We could not send the email. Check the address and try again.",
   "auth.error.resendTestMode":
-    "Email is in Resend test mode (onboarding@resend.dev). It can only send to the email on your Resend account. For other addresses: verify a domain at resend.com/domains, set RESEND_FROM_EMAIL to that domain, Redeploy — or use Sign in with password.",
+    "Email is not ready to send to every inbox yet. Add a free Gmail App Password as SMTP_PASS for hello.unkai@gmail.com, then Redeploy.",
   "auth.error.notConfigured":
-    "Login email is not configured on the server. In Vercel → senior-ai-assistant → Settings → Environment Variables (Production), add RESEND_API_KEY, RESEND_FROM_EMAIL, AUTH_SECRET, and APP_URL, then Redeploy.",
+    "Login email is not configured on the server. In Vercel add RESEND_API_KEY and RESEND_FROM_EMAIL=UNK AI <onboarding@resend.dev> (keep AUTH_SECRET), then Redeploy.",
   "auth.error.dbUnavailable":
     "Account storage is not ready on this server. Add TURSO_DATABASE_URL and TURSO_AUTH_TOKEN in Vercel Environment Variables, then Redeploy.",
   "auth.changeLanguage": "Change language",

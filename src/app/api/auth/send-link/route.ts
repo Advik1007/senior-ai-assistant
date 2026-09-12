@@ -36,13 +36,13 @@ export async function POST(request: Request) {
     const token = await createEmailVerifyToken(email, lang);
     const verifyUrl = `${appUrl.replace(/\/$/, "")}/auth/verify?token=${encodeURIComponent(token)}`;
 
-    await sendEmailVerification({
+    const sent = await sendEmailVerification({
       to: email,
       name: email.split("@")[0] || "UNK AI user",
       verificationUrl: verifyUrl,
     });
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, deliveredTo: sent.deliveredTo });
   } catch (error) {
     if (error instanceof EmailConfigurationError) {
       return NextResponse.json({ message: "not_configured" }, { status: 503 });

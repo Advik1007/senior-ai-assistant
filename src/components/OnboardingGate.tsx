@@ -4,7 +4,6 @@ import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
 import { useApp } from "@/components/providers/app-provider";
-import { BigButton } from "@/components/BigButton";
 import {
   isLanguagePath,
   isOnboardingEntryPath,
@@ -42,7 +41,13 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
   const nativeApp = isNativeAppShell();
 
   useEffect(() => {
-    return subscribeStore(() => setOnboardingTick((n) => n + 1));
+    let last = JSON.stringify(getOnboardingSnapshot());
+    return subscribeStore(() => {
+      const next = JSON.stringify(getOnboardingSnapshot());
+      if (next === last) return;
+      last = next;
+      setOnboardingTick((n) => n + 1);
+    });
   }, []);
 
   const decision = useMemo(() => {
@@ -108,21 +113,8 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
     window.history.pushState(null, "", window.location.href);
     window.addEventListener("popstate", blockPopState);
 
-    let removeBack: (() => void) | undefined;
-    if (Capacitor.isNativePlatform()) {
-      void import("@capacitor/app").then(({ App }) => {
-        const sub = App.addListener("backButton", () => {
-          // Swallow back — forward-only unless a UI button unlocks.
-        });
-        removeBack = () => {
-          void sub.then((h) => h.remove());
-        };
-      });
-    }
-
     return () => {
       window.removeEventListener("popstate", blockPopState);
-      removeBack?.();
     };
   }, [pathname, authStatus, sessionUser, router]);
 
@@ -138,19 +130,6 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/inbox/")
   ) {
     return <>{children}</>;
-  }
-
-  if (decision.sessionError) {
-    return (
-      <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col justify-center gap-4 px-4 text-center">
-        <p className="text-2xl font-bold text-[#0B1F3A]">
-          {strings.authErrorGeneric}
-        </p>
-        <BigButton tone="primary" onClick={() => window.location.reload()}>
-          OK
-        </BigButton>
-      </div>
-    );
   }
 
   if (!decision.allow && !entered) {

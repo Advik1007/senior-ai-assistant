@@ -143,8 +143,22 @@ export function refreshOnboardingSnapshot(): OnboardingState {
   return getOnboardingSnapshot();
 }
 
+function sameOnboarding(a: OnboardingState, b: OnboardingState): boolean {
+  return (
+    a.languageChosen === b.languageChosen &&
+    a.emailVerified === b.emailVerified &&
+    a.setupComplete === b.setupComplete &&
+    a.setupWizardComplete === b.setupWizardComplete &&
+    a.setupStep === b.setupStep &&
+    a.flowFloor === b.flowFloor
+  );
+}
+
 export function saveOnboarding(state: OnboardingState): void {
+  const previous = cache;
   cache = state;
+  if (previous && sameOnboarding(previous, state)) return;
+
   writeLangCookie(state.languageChosen);
   writeJson(PERSIST_KEY, {
     languageChosen: state.languageChosen,

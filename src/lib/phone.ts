@@ -20,6 +20,13 @@ export function toTelHref(phoneNumber: string): string {
 /** Opens the device phone app. Returns false if the number is missing. */
 export function startPhoneCall(phoneNumber: string): boolean {
   if (!hasUsablePhoneNumber(phoneNumber)) return false;
-  window.location.href = toTelHref(phoneNumber);
+  const href = toTelHref(phoneNumber);
+  // Never assign window.location — that unloads the WebView and Back cannot reload.
+  const link = document.createElement("a");
+  link.href = href;
+  link.rel = "noopener noreferrer";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
   return true;
 }

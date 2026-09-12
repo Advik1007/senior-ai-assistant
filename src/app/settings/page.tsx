@@ -23,6 +23,8 @@ import {
   restartOnboardingFromLanguage,
   restartSetupWizard,
 } from "@/lib/storage/onboarding";
+import { addContact, removeContact } from "@/lib/storage/contacts";
+import { hasUsablePhoneNumber } from "@/lib/phone";
 import { logoutSession } from "@/lib/auth/client-session";
 
 const EMPTY_HISTORY: import("@/lib/db/schema").BookingRecord[] = [];
@@ -52,7 +54,8 @@ export default function SettingsPage() {
   // Local drafts — avoid emitStore/full-tree re-render on every keystroke.
   const [draftName, setDraftName] = useState(profile.displayName);
   const [draftPhone, setDraftPhone] = useState(profile.phone);
-  const [draftEmail, setDraftEmail] = useState(profile.email);
+  const [newName, setNewName] = useState("");
+  const [newPhone, setNewPhone] = useState("");
 
   useEffect(() => {
     setDraftName(profile.displayName);
@@ -64,6 +67,21 @@ export default function SettingsPage() {
     setMemoryOn(isMemoryEnabled());
     setMemories(loadMemory());
   }, []);
+
+  function addFamilyNumber() {
+    const name = newName.trim();
+    const phoneNumber = newPhone.trim();
+    if (!name || !hasUsablePhoneNumber(phoneNumber)) return;
+    const next = addContact({
+      name,
+      relationship: "other",
+      phoneNumber,
+      isTrusted: true,
+    });
+    setContacts(next);
+    setNewName("");
+    setNewPhone("");
+  }
 
   function updateContact(id: string, patch: Partial<Contact>) {
     setContacts(contacts.map((c) => (c.id === id ? { ...c, ...patch } : c)));
@@ -146,7 +164,7 @@ export default function SettingsPage() {
 
       <section className="rounded-2xl border border-[#0B4F8A]/20 bg-white p-4 high-contrast:border-white high-contrast:bg-black">
         <h2 className="mb-4 text-2xl font-extrabold">{strings.language}</h2>
-        <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-2 gap-3">
           {LANGUAGES.map((lang) => (
             <BigButton
               key={lang.code}
@@ -221,6 +239,26 @@ export default function SettingsPage() {
 
       <section className="rounded-2xl border border-[#0B4F8A]/20 bg-white p-4 high-contrast:border-white high-contrast:bg-black">
         <h2 className="mb-4 text-2xl font-extrabold">{strings.manageFamily}</h2>
+        <div className="mb-6 space-y-3">
+          <Label className="text-lg">{strings.name}</Label>
+          <Input
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            className="h-14 rounded-xl border-2 text-xl md:text-xl"
+          />
+          <Label className="text-lg">{strings.phone}</Label>
+          <Input
+            type="tel"
+            inputMode="tel"
+            placeholder="+91"
+            value={newPhone}
+            onChange={(e) => setNewPhone(e.target.value)}
+            className="h-14 rounded-xl border-2 text-xl md:text-xl"
+          />
+          <BigButton tone="call" onClick={addFamilyNumber}>
+            {strings.setupContactsAdd}
+          </BigButton>
+        </div>
         <div className="flex flex-col gap-6">
           {contacts.map((contact) => (
             <div key={contact.id} className="border-t-2 border-[#0B1F3A]/20 pt-4 first:border-t-0 first:pt-0">
@@ -254,6 +292,13 @@ export default function SettingsPage() {
                   className="h-10 w-16 scale-125"
                 />
               </label>
+              <BigButton
+                tone="muted"
+                className="mt-3"
+                onClick={() => setContacts(removeContact(contact.id))}
+              >
+                {strings.routineRemove}
+              </BigButton>
             </div>
           ))}
         </div>

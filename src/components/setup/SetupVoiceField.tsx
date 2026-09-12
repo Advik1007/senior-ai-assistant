@@ -27,6 +27,7 @@ export function SetupVoiceField({
   sendLabel: string;
 }) {
   const [listening, setListening] = useState(false);
+  const [hint, setHint] = useState<string | null>(null);
   const genRef = useRef(0);
 
   const stopListening = useCallback(() => {
@@ -38,6 +39,7 @@ export function SetupVoiceField({
   const startListening = useCallback(() => {
     const gen = ++genRef.current;
     stopSpeaking();
+    setHint(null);
     setListening(true);
     void (async () => {
       const result = await listenOnce({ lang });
@@ -45,6 +47,18 @@ export function SetupVoiceField({
       setListening(false);
       if (result.ok) {
         onChange(result.transcript);
+        return;
+      }
+      if (result.error === "denied") {
+        setHint(
+          "Microphone permission is blocked. Open phone Settings → Apps → UNK AI → Permissions → Microphone → Allow, then tap again.",
+        );
+      } else if (result.error === "no-speech") {
+        setHint("I did not catch that. Tap the mic and speak again.");
+      } else if (result.error === "canceled") {
+        setHint("Tap the mic, then speak when the phone is listening.");
+      } else {
+        setHint("Could not start the microphone. Tap again and allow the mic if asked.");
       }
     })();
   }, [lang, onChange]);
@@ -63,6 +77,14 @@ export function SetupVoiceField({
           }
         }}
       />
+      {hint ? (
+        <p
+          className="rounded-2xl border border-[#C62828]/30 bg-[#FFF5F5] p-4 text-base font-semibold text-[#C62828]"
+          role="status"
+        >
+          {hint}
+        </p>
+      ) : null}
       <div className="flex flex-col gap-3 sm:flex-row">
         <BigButton
           tone={listening ? "help" : "gold"}

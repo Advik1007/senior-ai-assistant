@@ -181,6 +181,15 @@ body {
   background: #e8eef5;
 }
 
+/* Android WebView drops taps on controls without cursor:pointer. */
+button,
+a,
+[role="button"] {
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(244, 180, 0, 0.35);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

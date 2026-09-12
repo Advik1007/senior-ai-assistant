@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import {
+  useRef,
+  type ButtonHTMLAttributes,
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
+} from "react";
 
 type Tone = "primary" | "call" | "help" | "service" | "muted" | "gold";
 
@@ -21,7 +27,7 @@ const tones: Record<Tone, string> = {
 };
 
 const shared =
-  "inline-flex min-h-[4.25rem] items-center justify-center gap-3 rounded-2xl border-2 px-4 py-3 text-left text-xl font-bold leading-tight focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#F4B400] focus-visible:ring-offset-2";
+  "relative z-10 inline-flex min-h-[4.25rem] cursor-pointer items-center justify-center gap-3 rounded-2xl border-2 px-4 py-3 text-left text-xl font-bold leading-tight select-none [touch-action:manipulation] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#F4B400] focus-visible:ring-offset-2 active:brightness-95";
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
   tone?: Tone;
@@ -38,8 +44,11 @@ export function BigButton({
   href,
   className,
   children,
+  onClick,
   ...props
 }: Props) {
+  const tap = useRef({ x: 0, y: 0, at: 0 });
+
   const classes = cn(
     shared,
     "disabled:cursor-not-allowed disabled:opacity-50",
@@ -50,13 +59,40 @@ export function BigButton({
   const inner = (
     <>
       {icon ? (
-        <span className="shrink-0 text-2xl" aria-hidden>
+        <span className="pointer-events-none shrink-0 text-2xl" aria-hidden>
           {icon}
         </span>
       ) : null}
-      <span className="flex-1">{children}</span>
+      <span className="pointer-events-none flex-1">{children}</span>
     </>
   );
+
+  function invoke(event: MouseEvent<HTMLButtonElement>) {
+    if (!onClick || props.disabled) return;
+    const now =
+      typeof performance !== "undefined" ? performance.now() : Date.now();
+    if (now - tap.current.at < 400) return;
+    tap.current.at = now;
+    onClick(event);
+  }
+
+  function onPointerDown(event: PointerEvent<HTMLButtonElement>) {
+    tap.current = { x: event.clientX, y: event.clientY, at: tap.current.at };
+    props.onPointerDown?.(event);
+  }
+
+  function onPointerUp(event: PointerEvent<HTMLButtonElement>) {
+    props.onPointerUp?.(event);
+    if (event.button > 0) return;
+    const dx = event.clientX - tap.current.x;
+    const dy = event.clientY - tap.current.y;
+    if (dx * dx + dy * dy > 400) return;
+    invoke(event as unknown as MouseEvent<HTMLButtonElement>);
+  }
+
+  function onButtonClick(event: MouseEvent<HTMLButtonElement>) {
+    invoke(event);
+  }
 
   if (href) {
     const external =
@@ -76,14 +112,21 @@ export function BigButton({
       );
     }
     return (
-      <Link href={href} className={classes}>
+      <Link href={href} prefetch={false} className={classes}>
         {inner}
       </Link>
     );
   }
 
   return (
-    <button type="button" className={classes} {...props}>
+    <button
+      type="button"
+      className={classes}
+      {...props}
+      onPointerDown={onPointerDown}
+      onPointerUp={onPointerUp}
+      onClick={onButtonClick}
+    >
       {inner}
     </button>
   );

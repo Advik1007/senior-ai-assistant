@@ -23,6 +23,17 @@ export default function FamilyPage() {
     <AppShell title={strings.familyTitle}>
       <p className="text-lg text-[#3D4F63]">{strings.familyHint}</p>
 
+      {contacts.length === 0 ? (
+        <>
+          <p className="rounded-2xl border border-[#0B4F8A]/20 bg-white p-4 text-lg">
+            {strings.noPhone}
+          </p>
+          <BigButton href="/settings" tone="primary">
+            {strings.addNumber}
+          </BigButton>
+        </>
+      ) : null}
+
       {contacts.map((contact) => {
         const ready = hasUsablePhoneNumber(contact.phoneNumber);
         return (

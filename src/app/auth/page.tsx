@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { BigButton } from "@/components/BigButton";
 import {
   OnboardingShell,
@@ -12,6 +13,7 @@ import { clearLanguageChoice } from "@/lib/storage/onboarding";
  * After language: choose Sign in or Create account, then setup wizard → home.
  */
 export default function AuthWelcomePage() {
+  const router = useRouter();
   const { strings, lang } = useApp();
 
   return (
@@ -25,7 +27,7 @@ export default function AuthWelcomePage() {
       <BigButton
         tone="primary"
         onClick={() => {
-          window.location.assign("/auth/login");
+          router.replace("/auth/login");
         }}
       >
         {strings.authLoginButton}
@@ -34,7 +36,7 @@ export default function AuthWelcomePage() {
       <BigButton
         tone="call"
         onClick={() => {
-          window.location.assign("/auth/signup");
+          router.replace("/auth/signup");
         }}
       >
         {strings.authCreateAccount}
@@ -44,8 +46,7 @@ export default function AuthWelcomePage() {
         tone="muted"
         onClick={() => {
           clearLanguageChoice();
-          // Hard navigate — soft replace can lose to the onboarding gate in WebView.
-          window.location.assign("/start");
+          router.replace("/start");
         }}
       >
         {strings.authChangeLanguage}

@@ -34,6 +34,9 @@ export function loadRoutines(): RoutineItem[] {
 
 export function saveRoutines(items: RoutineItem[]): void {
   writeJson(KEY, items);
+  void import("@/lib/reminders")
+    .then(({ queueReminderSync }) => queueReminderSync())
+    .catch(() => undefined);
 }
 
 export function replaceRoutines(

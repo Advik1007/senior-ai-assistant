@@ -1,5 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
+/// <reference types="@capacitor/app" />
+/// <reference types="@capacitor/local-notifications" />
 import type { CapacitorConfig } from "@capacitor/cli";
 
 function loadEnvLocal(): void {
@@ -68,6 +70,9 @@ const config: CapacitorConfig = {
       launchShowDuration: 400,
       backgroundColor: "#0B4F8A",
       showSpinner: false,
+    },
+    LocalNotifications: {
+      iconColor: "#0B4F8A",
     },
   },
 };

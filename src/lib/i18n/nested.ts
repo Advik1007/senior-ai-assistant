@@ -1,5 +1,18 @@
 import type { Relationship } from "@/lib/db/schema";
-import type { TranslationCatalog } from "@/lib/i18n/types";
+import type { TranslationCatalog, TranslationKey } from "@/lib/i18n/types";
+
+function fill(
+  catalog: TranslationCatalog,
+  key: TranslationKey,
+  vars: Record<string, string>,
+): string {
+  let out = catalog[key];
+  if (typeof out !== "string") return Object.values(vars)[0] ?? "";
+  for (const [token, value] of Object.entries(vars)) {
+    out = out.replaceAll(`{${token}}`, value);
+  }
+  return out;
+}
 
 /** Converts flat catalog keys into the nested shape used by UI components. */
 export function catalogToNested(c: TranslationCatalog) {
@@ -26,15 +39,12 @@ export function catalogToNested(c: TranslationCatalog) {
     back: c["common.back"],
     home: c["common.home"],
     call: c["common.call"],
-    callName: (name: string) =>
-      c["family.callName"].replace("{name}", name),
+    callName: (name: string) => fill(c, "family.callName", { name }),
     noPhone: c["family.noPhone"],
     addNumber: c["family.addNumber"],
     confirmCallTitle: c["family.confirmTitle"],
     confirmCallBody: (name: string, relationship: string) =>
-      c["family.confirmBody"]
-        .replace("{name}", name)
-        .replace("{relationship}", relationship),
+      fill(c, "family.confirmBody", { name, relationship }),
     yesCall: c["family.yesCall"],
     noCancel: c["family.noCancel"],
     familyTitle: c["family.title"],
@@ -194,10 +204,11 @@ export function catalogToNested(c: TranslationCatalog) {
     setupContactsPhone: c["setup.contacts.phone"],
     setupContactsConfirmTitle: c["setup.contacts.confirmTitle"],
     setupContactsConfirmBody: (name: string, relationship: string, phone: string) =>
-      c["setup.contacts.confirmBody"]
-        .replace("{name}", name)
-        .replace("{relationship}", relationship)
-        .replace("{phone}", phone || "—"),
+      fill(c, "setup.contacts.confirmBody", {
+        name,
+        relationship,
+        phone: phone || "—",
+      }),
     setupContactsConfirmYes: c["setup.contacts.confirmYes"],
     setupContactsConfirmNo: c["setup.contacts.confirmNo"],
     setupContactsVoicePlaceholder: c["setup.contacts.voicePlaceholder"],
@@ -228,9 +239,7 @@ export function catalogToNested(c: TranslationCatalog) {
     setupMedicinesNotes: c["setup.medicines.notes"],
     setupMedicinesConfirmTitle: c["setup.medicines.confirmTitle"],
     setupMedicinesConfirmBody: (name: string, time: string) =>
-      c["setup.medicines.confirmBody"]
-        .replace("{name}", name)
-        .replace("{time}", time),
+      fill(c, "setup.medicines.confirmBody", { name, time }),
     setupMedicinesConfirmYes: c["setup.medicines.confirmYes"],
     setupMedicinesConfirmNo: c["setup.medicines.confirmNo"],
     setupMedicinesVoicePlaceholder: c["setup.medicines.voicePlaceholder"],
@@ -241,13 +250,12 @@ export function catalogToNested(c: TranslationCatalog) {
     setupCompleteSubtitle: c["setup.complete.subtitle"],
     setupCompleteReady: c["setup.complete.ready"],
     setupCompleteContinue: c["setup.complete.continue"],
-    greetingMorning: (name: string) => c["greeting.morning"].replace("{name}", name),
-    greetingAfternoon: (name: string) =>
-      c["greeting.afternoon"].replace("{name}", name),
-    greetingEvening: (name: string) => c["greeting.evening"].replace("{name}", name),
+    greetingMorning: (name: string) => fill(c, "greeting.morning", { name }),
+    greetingAfternoon: (name: string) => fill(c, "greeting.afternoon", { name }),
+    greetingEvening: (name: string) => fill(c, "greeting.evening", { name }),
     greetingItem: (label: string, time: string) =>
-      c["greeting.item"].replace("{label}", label).replace("{time}", time),
-    greetingNone: (name: string) => c["greeting.none"].replace("{name}", name),
+      fill(c, "greeting.item", { label, time }),
+    greetingNone: (name: string) => fill(c, "greeting.none", { name }),
     setupGreetingFriend: c["setup.greetingFriend"],
     directionsTitle: c["directions.title"],
     directionsIntro: c["directions.intro"],

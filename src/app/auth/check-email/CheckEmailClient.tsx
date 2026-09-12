@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { BigButton } from "@/components/BigButton";
 import {
   OnboardingLink,
   OnboardingShell,
   OnboardingStatus,
-  onboardingMutedTextClass,
 } from "@/components/OnboardingShell";
 import { useApp } from "@/components/providers/app-provider";
 import { authErrorMessage } from "@/lib/auth/client";
@@ -57,16 +57,17 @@ export default function CheckEmailClient() {
           {email}
         </p>
       ) : null}
-      <OnboardingStatus tone="success">{strings.authVerifyResent}</OnboardingStatus>
-      <p className={onboardingMutedTextClass}>{strings.authVerifyPending}</p>
+      <OnboardingStatus tone="success">{strings.authVerifyPending}</OnboardingStatus>
       {message ? <OnboardingStatus tone="success">{message}</OnboardingStatus> : null}
       {error ? <OnboardingStatus tone="error">{error}</OnboardingStatus> : null}
       {email ? (
-        <p className={`text-center ${onboardingMutedTextClass}`}>
-          <OnboardingLink onClick={() => void resend()}>
-            {resending ? strings.authSendingEmailLink : strings.authVerifyResend}
-          </OnboardingLink>
-        </p>
+        <BigButton
+          tone="gold"
+          disabled={resending}
+          onClick={() => void resend()}
+        >
+          {resending ? strings.authSendingEmailLink : strings.authVerifyResend}
+        </BigButton>
       ) : null}
     </OnboardingShell>
   );

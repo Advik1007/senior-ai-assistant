@@ -41,6 +41,7 @@ export type ListenOnceResult =
 type NativeSpeech = typeof import("@capgo/capacitor-speech-recognition").SpeechRecognition;
 
 let listenEpoch = 0;
+let nativeSpeechCache: NativeSpeech | null | undefined;
 
 function isNativeApp(): boolean {
   if (typeof window === "undefined") return false;
@@ -61,12 +62,13 @@ function isNativeApp(): boolean {
 
 async function loadNativeSpeech(): Promise<NativeSpeech | null> {
   if (!isNativeApp()) return null;
+  if (nativeSpeechCache !== undefined) return nativeSpeechCache;
   try {
     const mod = await import("@capgo/capacitor-speech-recognition");
-    // Probe the native bridge — web stub throws UNIMPLEMENTED.
-    await mod.SpeechRecognition.available();
-    return mod.SpeechRecognition;
+    nativeSpeechCache = mod.SpeechRecognition;
+    return nativeSpeechCache;
   } catch {
+    nativeSpeechCache = null;
     return null;
   }
 }
@@ -101,14 +103,16 @@ function classifyNativeError(message: string): ListenError {
     m.includes("permission") ||
     m.includes("denied") ||
     m.includes("not-allowed") ||
-    m.includes("missing_permission")
+    m.includes("missing_permission") ||
+    m.includes("insufficient")
   ) {
     return "denied";
   }
   if (
     m.includes("already running") ||
     m.includes("busy") ||
-    m.includes("in progress")
+    m.includes("in progress") ||
+    m.includes("recognizer_busy")
   ) {
     return "busy";
   }
@@ -116,22 +120,29 @@ function classifyNativeError(message: string): ListenError {
     m.includes("not available") ||
     m.includes("unavailable") ||
     m.includes("service-not-allowed") ||
-    m.includes("unimplemented")
+    m.includes("unimplemented") ||
+    m.includes("not_available")
   ) {
     return "unavailable";
   }
-  // Android Activity.RESULT_CANCELED === 0 when dialog dismissed / failed to open
+  if (
+    m.includes("no.?speech") ||
+    m.includes("no match") ||
+    m.includes("nomatch") ||
+    m.includes("speech_timeout") ||
+    m.includes("speech timeout")
+  ) {
+    return "no-speech";
+  }
+  // Android popup dismiss is Activity.RESULT_CANCELED === 0.
   if (
     m === "0" ||
-    m.includes("cancel") ||
-    m.includes("aborted") ||
     m.includes("result_canceled") ||
-    m.includes("user")
+    m.includes("canceled") ||
+    m.includes("cancelled") ||
+    m.includes("aborted")
   ) {
     return "canceled";
-  }
-  if (m.includes("no.?speech") || m.includes("no match") || m.includes("nomatch")) {
-    return "no-speech";
   }
   return "failed";
 }
@@ -168,7 +179,7 @@ export async function ensureMicPermission(): Promise<MicPermission> {
 
 async function forceStopNative(SpeechRecognition: NativeSpeech): Promise<void> {
   try {
-    await SpeechRecognition.forceStop({ timeout: 400 });
+    await SpeechRecognition.forceStop({ timeout: 250 });
   } catch {
     try {
       await SpeechRecognition.stop();
@@ -176,7 +187,23 @@ async function forceStopNative(SpeechRecognition: NativeSpeech): Promise<void> {
       // ignore
     }
   }
-  await sleep(120);
+}
+
+async function stopNativeIfListening(
+  SpeechRecognition: NativeSpeech,
+): Promise<void> {
+  try {
+    const { listening } = await SpeechRecognition.isListening();
+    if (!listening) return;
+  } catch {
+    return;
+  }
+  await forceStopNative(SpeechRecognition);
+  await sleep(180);
+}
+
+async function waitForTtsRelease(): Promise<void> {
+  stopSpeaking();
 }
 
 async function startNativeOnce(
@@ -184,11 +211,6 @@ async function startNativeOnce(
   options: { language: string; prompt: string; popup: boolean },
 ): Promise<ListenOnceResult> {
   try {
-    const { available } = await SpeechRecognition.available();
-    if (!available) {
-      return { ok: false, error: "unavailable", detail: "SpeechRecognizer unavailable" };
-    }
-
     const result = await SpeechRecognition.start({
       language: options.language,
       maxResults: 3,
@@ -212,8 +234,8 @@ async function startNativeOnce(
 }
 
 /**
- * One-shot listen from a user tap. Prefer inline Android recognition, then
- * system popup, then browser SpeechRecognition.
+ * One-shot listen from a user tap.
+ * Android: system “Speak now” dialog first (reliable), then inline recognizer.
  */
 export async function listenOnce(options: {
   lang: AppLanguage | string;
@@ -227,9 +249,7 @@ export async function listenOnce(options: {
   const language = speechLocale(options.lang);
   const prompt = options.prompt?.trim() || "Speak now — UNK is listening";
 
-  stopSpeaking();
-  // Give TTS / audio focus a beat to release before RECORD_AUDIO.
-  await sleep(180);
+  await waitForTtsRelease();
   if (epoch !== listenEpoch) {
     return { ok: false, error: "canceled" };
   }
@@ -237,60 +257,52 @@ export async function listenOnce(options: {
   const permission = await ensureMicPermission();
   if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
   if (permission === "denied") return { ok: false, error: "denied" };
-  if (permission === "unavailable") {
-    // Still try browser path below if native probe failed.
-  }
 
   const SpeechRecognition = await loadNativeSpeech();
   if (SpeechRecognition) {
-    await forceStopNative(SpeechRecognition);
+    await stopNativeIfListening(SpeechRecognition);
     if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
 
-    // Inline first — avoids silent RESULT_CANCELED from the system dialog path.
+    // System dialog first — works on most Android phones from a tap.
     let result = await startNativeOnce(SpeechRecognition, {
       language,
       prompt,
-      popup: false,
+      popup: true,
     });
     if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
-
-    if (!result.ok && result.error === "busy") {
-      await forceStopNative(SpeechRecognition);
-      if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
-      result = await startNativeOnce(SpeechRecognition, {
-        language,
-        prompt,
-        popup: false,
-      });
-      if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
+    if (result.ok || result.error === "denied" || result.error === "no-speech") {
+      return result;
     }
 
-    if (
-      !result.ok &&
-      result.error !== "denied" &&
-      result.error !== "no-speech"
-    ) {
+    if (result.error === "busy") {
       await forceStopNative(SpeechRecognition);
+      await sleep(220);
       if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
-      const popupResult = await startNativeOnce(SpeechRecognition, {
+      result = await startNativeOnce(SpeechRecognition, {
         language,
         prompt,
         popup: true,
       });
       if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
-      if (popupResult.ok) return popupResult;
-      if (popupResult.error === "denied") return popupResult;
-      if (popupResult.error === "no-speech") return popupResult;
-      // Keep the more specific inline error when popup was only canceled.
-      if (result.error !== "failed" || popupResult.error !== "canceled") {
-        return result.error === "canceled" ? popupResult : result;
+      if (result.ok || result.error === "denied" || result.error === "no-speech") {
+        return result;
       }
     }
 
-    return result;
+    // Inline fallback when the Google dialog did not open.
+    await sleep(120);
+    if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
+    const inline = await startNativeOnce(SpeechRecognition, {
+      language,
+      prompt,
+      popup: false,
+    });
+    if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
+    if (inline.ok) return inline;
+    if (inline.error === "denied" || inline.error === "no-speech") return inline;
+    return inline.error === "canceled" ? result : inline;
   }
 
-  // Browser Web Speech API
   const rec = createBrowserSpeechRecognition();
   if (!rec) {
     return { ok: false, error: "unavailable" };
@@ -320,7 +332,10 @@ export async function listenOnce(options: {
       const code = event.error || "failed";
       if (code === "not-allowed") finish({ ok: false, error: "denied" });
       else if (code === "no-speech" || code === "aborted") {
-        finish({ ok: false, error: code === "aborted" ? "canceled" : "no-speech" });
+        finish({
+          ok: false,
+          error: code === "aborted" ? "canceled" : "no-speech",
+        });
       } else if (code === "service-not-allowed") {
         finish({ ok: false, error: "unavailable" });
       } else finish({ ok: false, error: "failed", detail: code });
@@ -443,7 +458,7 @@ export function speakText(
     options.onend?.();
     return;
   }
-  window.speechSynthesis.cancel();
+  stopSpeaking();
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.rate = options.rate;
   const locale = speechLocale(options.lang);
@@ -463,5 +478,12 @@ export function speakText(
 
 export function stopSpeaking(): void {
   if (typeof window === "undefined") return;
-  window.speechSynthesis.cancel();
+  if (!("speechSynthesis" in window)) return;
+  try {
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.pause();
+    window.speechSynthesis.cancel();
+  } catch {
+    // ignore
+  }
 }

@@ -10,7 +10,14 @@ const cache = new Map<AppLanguage, AppStrings>();
 export function t(lang: AppLanguage): AppStrings {
   const hit = cache.get(lang);
   if (hit) return hit;
-  const next = catalogToNested(CATALOGS[lang] ?? CATALOGS.en);
-  cache.set(lang, next);
-  return next;
+  try {
+    const merged = { ...CATALOGS.en, ...(CATALOGS[lang] ?? {}) };
+    const next = catalogToNested(merged);
+    cache.set(lang, next);
+    return next;
+  } catch {
+    const fallback = catalogToNested(CATALOGS.en);
+    cache.set(lang, fallback);
+    return fallback;
+  }
 }

@@ -141,6 +141,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
+    let retryTimer: number | undefined;
     const epochAtStart = authEpoch.current;
     const cached = readCachedSessionUser();
 
@@ -184,9 +185,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      // Network /me failure must NOT wall the app with a generic error screen.
+      // Stay anonymous so language / login still work; retry quietly.
       if (error) {
         setSessionUser(null);
-        setAuthStatus("error");
+        setAuthStatus("anonymous");
+        if (cancelled) return;
+        retryTimer = window.setTimeout(() => {
+          if (cancelled || authEpoch.current !== epochAtStart) return;
+          void fetchSessionUserResilient().then((again) => {
+            if (cancelled || authEpoch.current !== epochAtStart) return;
+            if (!again.user) return;
+            applySessionToClient(again.user);
+            setSessionUser(again.user);
+            setAuthStatus("authenticated");
+          });
+        }, 1500);
         return;
       }
 
@@ -197,6 +211,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     return () => {
       cancelled = true;
+      if (retryTimer) window.clearTimeout(retryTimer);
     };
   }, []);
 

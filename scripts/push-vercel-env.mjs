@@ -8,11 +8,18 @@ import fs from "node:fs";
 import path from "node:path";
 
 const KEYS = [
-  "RESEND_API_KEY",
-  "RESEND_FROM_EMAIL",
   "AUTH_SECRET",
   "APP_URL",
   "CAPACITOR_SERVER_URL",
+];
+const OPTIONAL = [
+  "SMTP_HOST",
+  "SMTP_PORT",
+  "SMTP_USER",
+  "SMTP_PASS",
+  "SMTP_FROM",
+  "RESEND_API_KEY",
+  "RESEND_FROM_EMAIL",
 ];
 
 function loadEnvLocal() {
@@ -48,20 +55,27 @@ if (missing.length) {
   process.exit(1);
 }
 
-console.log("Pushing env vars to Vercel (Production)…\n");
+const toPush = [
+  ...KEYS,
+  ...OPTIONAL.filter((key) => values[key]?.trim()),
+];
 
-for (const key of KEYS) {
-  const value = values[key];
-  try {
-    execSync(`npx vercel env rm ${key} production --yes`, { stdio: "ignore" });
-  } catch {
-    // not set yet
-  }
-  execSync(`npx vercel env add ${key} production`, {
-    input: value,
-    stdio: ["pipe", "inherit", "inherit"],
-  });
+const targets = "production,preview,development";
+
+console.log(`Pushing env vars to Vercel (${targets})…\n`);
+
+for (const key of toPush) {
+  let value = values[key];
+  if (key === "SMTP_PASS") value = value.replace(/\s+/g, "");
+  const sensitive = key === "SMTP_PASS" || key === "AUTH_SECRET" ? ["--sensitive"] : ["--no-sensitive"];
+  execSync(
+    `npx vercel env add ${key} ${targets} --yes --force ${sensitive.join(" ")} --project senior-ai-assistant --scope advik1007`,
+    {
+      input: value,
+      stdio: ["pipe", "inherit", "inherit"],
+    },
+  );
   console.log(`✓ ${key}`);
 }
 
-console.log("\nDone. Redeploy in Vercel (Deployments → Redeploy) for changes to apply.");
+console.log("\nDone. Redeploy (or push) so the live app picks up Gmail SMTP.");

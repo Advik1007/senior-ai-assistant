@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Smaller client chunks — lucide icons otherwise inflate the Android WebView parse.
+  experimental: {
+    optimizePackageImports: ["lucide-react"],
+  },
   // Strip noisy client console.* from production bundles (keeps error).
   // Browser source maps are off by default for `next build` — do not enable them for production.
   compiler: {
@@ -17,6 +21,7 @@ const nextConfig: NextConfig = {
     "@capacitor/app",
     "@capacitor/preferences",
     "@capacitor/splash-screen",
+    "@capacitor/local-notifications",
     "@capgo/capacitor-speech-recognition",
   ],
   // Force phones to download APKs instead of trying to “open” them as pages.

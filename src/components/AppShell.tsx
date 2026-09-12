@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { useApp } from "@/components/providers/app-provider";
 import { UnkLogo } from "@/components/UnkLogo";
@@ -14,6 +14,7 @@ export function AppShell({
   showBack?: boolean;
   children: React.ReactNode;
 }) {
+  const router = useRouter();
   const { strings, prefs } = useApp();
 
   return (
@@ -24,13 +25,14 @@ export function AppShell({
     >
       <header className="mb-4 flex shrink-0 items-center gap-3 rounded-2xl bg-[#0B1F3A] px-3 py-3 text-white high-contrast:bg-black high-contrast:ring-2 high-contrast:ring-white">
         {showBack ? (
-          <Link
-            href="/home"
-            className="inline-flex min-h-12 min-w-12 items-center justify-center rounded-xl border border-white/25 bg-white/10 text-white high-contrast:border-white"
+          <button
+            type="button"
+            onClick={() => router.push("/home")}
+            className="inline-flex min-h-12 min-w-12 cursor-pointer items-center justify-center rounded-xl border border-white/25 bg-white/10 text-white [touch-action:manipulation] high-contrast:border-white"
           >
             <ArrowLeft aria-hidden className="size-6" />
             <span className="sr-only">{strings.back}</span>
-          </Link>
+          </button>
         ) : (
           <UnkLogo className="size-12 shrink-0" />
         )}

@@ -1,5 +1,4 @@
 import type { AppLanguage } from "@/lib/languages";
-import { DEFAULT_LANGUAGE } from "@/lib/languages";
 
 export type DeviceLoginCopy = {
   subject: string;
@@ -204,7 +203,7 @@ const kn: DeviceLoginCopy = {
 };
 
 
-const catalogs: Record<AppLanguage, DeviceLoginCopy> = {
+const catalogs: Partial<Record<AppLanguage, DeviceLoginCopy>> = {
   en,
   hi,
   gu,
@@ -216,5 +215,5 @@ const catalogs: Record<AppLanguage, DeviceLoginCopy> = {
 };
 
 export function deviceLoginCopy(lang: AppLanguage): DeviceLoginCopy {
-  return catalogs[lang] ?? catalogs[DEFAULT_LANGUAGE];
+  return catalogs[lang] ?? en;
 }
