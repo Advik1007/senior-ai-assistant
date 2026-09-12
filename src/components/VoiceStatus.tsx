@@ -80,9 +80,8 @@ export function VoiceStatus({
       <button
         type="button"
         aria-live="polite"
-        onPointerDown={tap.onPointerDown}
-        onPointerUp={tap.onPointerUp}
         onClick={tap.onClick}
+        onTouchEnd={tap.onTouchEnd}
         className={`${shared} cursor-pointer [touch-action:manipulation] active:brightness-95`}
       >
         {inner}

@@ -1,7 +1,7 @@
 /**
  * Speech helpers.
- * On Capacitor Android/iOS, uses native Capgo speech recognition
- * (WebView has no reliable webkitSpeechRecognition). In browsers, uses Web Speech API.
+ * Prefer the website microphone (Web Speech + getUserMedia) from a user tap.
+ * Native Capgo is a fallback inside the Android app. Server transcription is last.
  */
 
 import { Capacitor } from "@capacitor/core";
@@ -42,6 +42,7 @@ type NativeSpeech = typeof import("@capgo/capacitor-speech-recognition").SpeechR
 
 let listenEpoch = 0;
 let nativeSpeechCache: NativeSpeech | null | undefined;
+let websiteAbort: (() => void) | null = null;
 
 function isNativeApp(): boolean {
   if (typeof window === "undefined") return false;
@@ -71,6 +72,17 @@ async function loadNativeSpeech(): Promise<NativeSpeech | null> {
     nativeSpeechCache = null;
     return null;
   }
+}
+
+function hasWebsiteSpeechApi(): boolean {
+  if (typeof window === "undefined") return false;
+  const SpeechWindow = window as Window & {
+    SpeechRecognition?: unknown;
+    webkitSpeechRecognition?: unknown;
+  };
+  return Boolean(
+    SpeechWindow.SpeechRecognition || SpeechWindow.webkitSpeechRecognition,
+  );
 }
 
 function createBrowserSpeechRecognition(): SpeechRecognitionLike | null {
@@ -150,9 +162,40 @@ function classifyNativeError(message: string): ListenError {
   return "failed";
 }
 
-/** Ask for mic access — must run from a user tap on Android/WebView. */
+function stopTracks(stream: MediaStream | null | undefined): void {
+  stream?.getTracks().forEach((track) => {
+    try {
+      track.stop();
+    } catch {
+      // ignore
+    }
+  });
+}
+
+function recorderMimeType(): string {
+  const types = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/mp4",
+    "audio/aac",
+  ];
+  if (typeof MediaRecorder === "undefined") return "";
+  return types.find((type) => MediaRecorder.isTypeSupported(type)) || "";
+}
+
+/** Ask for the website mic — must run from a user tap (no delay before this). */
 export async function ensureMicPermission(): Promise<MicPermission> {
   if (typeof window === "undefined") return "unavailable";
+
+  if (navigator.mediaDevices?.getUserMedia) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stopTracks(stream);
+      return "granted";
+    } catch {
+      // Native plugin may still work even if the website prompt is blocked.
+    }
+  }
 
   const SpeechRecognition = await loadNativeSpeech();
   if (SpeechRecognition) {
@@ -168,16 +211,213 @@ export async function ensureMicPermission(): Promise<MicPermission> {
     }
   }
 
-  if (!navigator.mediaDevices?.getUserMedia) {
-    return createBrowserSpeechRecognition() ? "granted" : "unavailable";
-  }
+  return createBrowserSpeechRecognition() ? "granted" : "unavailable";
+}
+
+async function openWebsiteMic(): Promise<MediaStream | null> {
+  if (!navigator.mediaDevices?.getUserMedia) return null;
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    stream.getTracks().forEach((track) => track.stop());
-    return "granted";
+    return await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true },
+    });
   } catch {
-    return "denied";
+    return null;
   }
+}
+
+function listenWithWebsiteSpeech(
+  language: string,
+  stream: MediaStream | null,
+): Promise<ListenOnceResult> {
+  const rec = createBrowserSpeechRecognition();
+  if (!rec) {
+    stopTracks(stream);
+    return Promise.resolve({ ok: false, error: "unavailable" });
+  }
+
+  return new Promise((resolve) => {
+    let settled = false;
+    let last = "";
+    const finish = (value: ListenOnceResult) => {
+      if (settled) return;
+      settled = true;
+      websiteAbort = null;
+      try {
+        rec.stop();
+      } catch {
+        // ignore
+      }
+      try {
+        rec.abort();
+      } catch {
+        // ignore
+      }
+      stopTracks(stream);
+      resolve(value);
+    };
+
+    websiteAbort = () => finish({ ok: false, error: "canceled" });
+
+    rec.lang = language;
+    rec.interimResults = true;
+    rec.continuous = false;
+    rec.maxAlternatives = 1;
+    rec.onresult = (event) => {
+      let text = "";
+      for (let i = 0; i < event.results.length; i += 1) {
+        text += event.results[i]?.[0]?.transcript ?? "";
+      }
+      last = text.trim();
+      const lastResult = event.results[event.results.length - 1] as
+        | (ArrayLike<{ transcript: string }> & { isFinal?: boolean })
+        | undefined;
+      if (last && lastResult?.isFinal) {
+        finish({ ok: true, transcript: last });
+      }
+    };
+    rec.onerror = (event) => {
+      const code = event.error || "failed";
+      if (code === "not-allowed") finish({ ok: false, error: "denied" });
+      else if (code === "no-speech") finish({ ok: false, error: "no-speech" });
+      else if (code === "aborted") finish({ ok: false, error: "canceled" });
+      else if (code === "service-not-allowed") {
+        finish({ ok: false, error: "unavailable" });
+      } else finish({ ok: false, error: "failed", detail: code });
+    };
+    rec.onend = () => {
+      if (last) finish({ ok: true, transcript: last });
+      else finish({ ok: false, error: "no-speech" });
+    };
+
+    try {
+      rec.start();
+    } catch (err) {
+      finish({
+        ok: false,
+        error: "failed",
+        detail: errMessage(err).slice(0, 160),
+      });
+    }
+
+    window.setTimeout(() => {
+      if (last) finish({ ok: true, transcript: last });
+      else finish({ ok: false, error: "no-speech" });
+    }, 8000);
+  });
+}
+
+async function listenWithWebsiteRecorder(
+  language: string,
+  epoch: number,
+): Promise<ListenOnceResult> {
+  if (typeof MediaRecorder === "undefined") {
+    return { ok: false, error: "unavailable" };
+  }
+
+  const stream = await openWebsiteMic();
+  if (!stream) return { ok: false, error: "denied" };
+  if (epoch !== listenEpoch) {
+    stopTracks(stream);
+    return { ok: false, error: "canceled" };
+  }
+
+  const mime = recorderMimeType();
+  const chunks: BlobPart[] = [];
+
+  return new Promise((resolve) => {
+    let settled = false;
+    let recorder: MediaRecorder;
+    try {
+      recorder = mime
+        ? new MediaRecorder(stream, { mimeType: mime })
+        : new MediaRecorder(stream);
+    } catch {
+      stopTracks(stream);
+      resolve({ ok: false, error: "unavailable" });
+      return;
+    }
+
+    const finish = (value: ListenOnceResult) => {
+      if (settled) return;
+      settled = true;
+      websiteAbort = null;
+      try {
+        if (recorder.state !== "inactive") recorder.stop();
+      } catch {
+        // ignore
+      }
+      stopTracks(stream);
+      resolve(value);
+    };
+
+    websiteAbort = () => finish({ ok: false, error: "canceled" });
+
+    recorder.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) chunks.push(event.data);
+    };
+    recorder.onerror = () => finish({ ok: false, error: "failed" });
+    recorder.onstop = () => {
+      if (settled) return;
+      void (async () => {
+        const blob = new Blob(chunks, {
+          type: recorder.mimeType || mime || "audio/webm",
+        });
+        stopTracks(stream);
+        if (epoch !== listenEpoch) {
+          finish({ ok: false, error: "canceled" });
+          return;
+        }
+        if (blob.size < 200) {
+          finish({ ok: false, error: "no-speech" });
+          return;
+        }
+        try {
+          const form = new FormData();
+          form.append("audio", blob, "speech.webm");
+          form.append("lang", language);
+          const res = await fetch("/api/transcribe", {
+            method: "POST",
+            body: form,
+          });
+          if (epoch !== listenEpoch) {
+            finish({ ok: false, error: "canceled" });
+            return;
+          }
+          if (!res.ok) {
+            finish({
+              ok: false,
+              error: res.status === 503 ? "unavailable" : "failed",
+            });
+            return;
+          }
+          const data = (await res.json()) as { transcript?: string };
+          const transcript = data.transcript?.trim() ?? "";
+          finish(
+            transcript
+              ? { ok: true, transcript }
+              : { ok: false, error: "no-speech" },
+          );
+        } catch {
+          finish({ ok: false, error: "failed" });
+        }
+      })();
+    };
+
+    try {
+      recorder.start();
+    } catch {
+      finish({ ok: false, error: "failed" });
+      return;
+    }
+
+    window.setTimeout(() => {
+      try {
+        if (recorder.state === "recording") recorder.stop();
+      } catch {
+        finish({ ok: false, error: "failed" });
+      }
+    }, 7000);
+  });
 }
 
 async function forceStopNative(SpeechRecognition: NativeSpeech): Promise<void> {
@@ -203,12 +443,6 @@ async function stopNativeIfListening(
   }
   await forceStopNative(SpeechRecognition);
   await sleep(180);
-}
-
-async function waitForTtsRelease(): Promise<void> {
-  stopSpeaking();
-  // Android keeps audio focus for a beat after speechSynthesis.cancel.
-  await sleep(280);
 }
 
 async function startNativeOnce(
@@ -240,8 +474,7 @@ async function startNativeOnce(
 
 /**
  * One-shot listen from a user tap.
- * Android: inline SpeechRecognizer (the Google “Speak now” popup often returns
- * canceled from a Capacitor WebView, especially when run from Android Studio).
+ * Website mic first (must start in the same tap). Native speech is fallback.
  */
 export async function listenOnce(options: {
   lang: AppLanguage | string;
@@ -255,112 +488,94 @@ export async function listenOnce(options: {
   const language = speechLocale(options.lang);
   const prompt = options.prompt?.trim() || "Speak now — UNK is listening";
 
-  await waitForTtsRelease();
-  if (epoch !== listenEpoch) {
-    return { ok: false, error: "canceled" };
+  stopSpeaking();
+
+  const hasWebsiteSpeech = hasWebsiteSpeechApi();
+  if (hasWebsiteSpeech) {
+    const stream = await openWebsiteMic();
+    if (epoch !== listenEpoch) {
+      stopTracks(stream);
+      return { ok: false, error: "canceled" };
+    }
+    const web = await listenWithWebsiteSpeech(language, stream);
+    if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
+    if (web.ok || web.error === "no-speech") return web;
+    if (web.error === "denied") {
+      // Try native next — OS mic permission may still be granted.
+    } else if (web.error !== "unavailable" && web.error !== "failed") {
+      return web;
+    }
   }
 
   const permission = await ensureMicPermission();
   if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
-  if (permission === "denied") return { ok: false, error: "denied" };
+  if (permission === "denied" && !hasWebsiteSpeech) {
+    return { ok: false, error: "denied" };
+  }
 
   const SpeechRecognition = await loadNativeSpeech();
   if (SpeechRecognition) {
     try {
       const { available } = await SpeechRecognition.available();
-      if (!available) return { ok: false, error: "unavailable" };
-    } catch {
-      return { ok: false, error: "unavailable" };
-    }
-    if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
+      if (!available) {
+        // Fall through to website recorder.
+      } else {
+        if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
+        await stopNativeIfListening(SpeechRecognition);
+        if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
 
-    await stopNativeIfListening(SpeechRecognition);
-    if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
-
-    let result = await startNativeOnce(SpeechRecognition, {
-      language,
-      prompt,
-      popup: false,
-    });
-    if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
-    if (result.ok || result.error === "denied" || result.error === "no-speech") {
-      return result;
-    }
-
-    if (
-      result.error === "busy" ||
-      result.error === "canceled" ||
-      result.error === "failed"
-    ) {
-      await forceStopNative(SpeechRecognition);
-      await sleep(450);
-      if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
-      result = await startNativeOnce(SpeechRecognition, {
-        language,
-        prompt,
-        popup: false,
-      });
-      if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
-    }
-
-    return result;
-  }
-
-  const rec = createBrowserSpeechRecognition();
-  if (!rec) {
-    return { ok: false, error: "unavailable" };
-  }
-
-  return new Promise((resolve) => {
-    let settled = false;
-    const finish = (value: ListenOnceResult) => {
-      if (settled) return;
-      settled = true;
-      resolve(value);
-    };
-
-    rec.lang = language;
-    rec.interimResults = false;
-    rec.continuous = false;
-    rec.maxAlternatives = 1;
-    rec.onresult = (event) => {
-      const transcript = event.results[0]?.[0]?.transcript?.trim() ?? "";
-      finish(
-        transcript
-          ? { ok: true, transcript }
-          : { ok: false, error: "no-speech" },
-      );
-    };
-    rec.onerror = (event) => {
-      const code = event.error || "failed";
-      if (code === "not-allowed") finish({ ok: false, error: "denied" });
-      else if (code === "no-speech" || code === "aborted") {
-        finish({
-          ok: false,
-          error: code === "aborted" ? "canceled" : "no-speech",
+        let result = await startNativeOnce(SpeechRecognition, {
+          language,
+          prompt,
+          popup: false,
         });
-      } else if (code === "service-not-allowed") {
-        finish({ ok: false, error: "unavailable" });
-      } else finish({ ok: false, error: "failed", detail: code });
-    };
-    rec.onend = () => {
-      finish({ ok: false, error: "no-speech" });
-    };
-    try {
-      rec.start();
-    } catch (err) {
-      finish({
-        ok: false,
-        error: "failed",
-        detail: errMessage(err).slice(0, 160),
-      });
+        if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
+        if (
+          result.ok ||
+          result.error === "denied" ||
+          result.error === "no-speech"
+        ) {
+          return result;
+        }
+
+        if (
+          result.error === "busy" ||
+          result.error === "canceled" ||
+          result.error === "failed"
+        ) {
+          await forceStopNative(SpeechRecognition);
+          await sleep(450);
+          if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
+          result = await startNativeOnce(SpeechRecognition, {
+            language,
+            prompt,
+            popup: false,
+          });
+          if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
+          if (
+            result.ok ||
+            result.error === "denied" ||
+            result.error === "no-speech"
+          ) {
+            return result;
+          }
+        }
+      }
+    } catch {
+      // Native plugin missing — use website recorder.
     }
-  });
+  }
+
+  const recorded = await listenWithWebsiteRecorder(language, epoch);
+  if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
+  return recorded;
 }
 
 /** Cancel an in-flight listenOnce (native forceStop + invalidate epoch). */
 export async function cancelListen(): Promise<void> {
   listenEpoch += 1;
+  websiteAbort?.();
+  websiteAbort = null;
   const SpeechRecognition = await loadNativeSpeech();
   if (SpeechRecognition) {
     await forceStopNative(SpeechRecognition);
