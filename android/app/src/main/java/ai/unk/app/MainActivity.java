@@ -30,6 +30,9 @@ public class MainActivity extends BridgeActivity {
     }
 
     tuneWebView(bridge.getWebView());
+    if (bridge.getWebView() != null) {
+      bridge.getWebView().clearCache(true);
+    }
 
     bridge.addWebViewListener(
       new WebViewListener() {
