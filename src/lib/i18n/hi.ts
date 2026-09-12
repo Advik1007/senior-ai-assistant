@@ -33,7 +33,7 @@ const hiOverrides: Partial<TranslationCatalog> = {
   "auth.error.sendFailed":
     "ईमेल नहीं भेजा जा सका। पता जाँचें और फिर कोशिश करें।",
   "auth.error.notConfigured":
-    "ईमेल अभी सेट नहीं है। .env.local में GMAIL_USER और GMAIL_APP_PASSWORD जोड़ें, फिर ऐप दोबारा चालू करें।",
+    "ईमेल अभी सेट नहीं है। .env.local में RESEND_API_KEY और AUTH_SECRET जोड़ें, फिर ऐप दोबारा चालू करें।",
   "auth.changeLanguage": "भाषा बदलें",
   "auth.setupCallsTitle": "अपनी कॉल सेट करें",
   "auth.setupCallsHint":

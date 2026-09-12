@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { BigButton } from "@/components/BigButton";
+import { DailyGreeting } from "@/components/DailyGreeting";
+import { TodayReminders } from "@/components/TodayReminders";
 import { useApp } from "@/components/providers/app-provider";
 
 const tile = "min-h-[4.25rem] text-lg sm:text-xl";
@@ -22,6 +24,9 @@ export default function HomePage() {
 
   return (
     <AppShell showBack={false} title={strings.tagline}>
+      <DailyGreeting />
+      <TodayReminders />
+
       <BigButton
         href="/talk"
         tone="gold"

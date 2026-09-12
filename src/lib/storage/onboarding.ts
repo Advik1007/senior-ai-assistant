@@ -1,4 +1,7 @@
+import { loadContacts } from "@/lib/storage/contacts";
 import { readJson, writeJson } from "@/lib/storage/local-store";
+import { loadMedicalProfile } from "@/lib/storage/medical-profile";
+import { loadRoutines } from "@/lib/storage/routines";
 import { emitStore } from "@/lib/storage/store-events";
 
 const PERSIST_KEY = "unk.onboarding";
@@ -238,6 +241,37 @@ export function markSetupComplete(): void {
     setupStep: "complete",
     flowFloor: "done",
   });
+
+  if (typeof window !== "undefined") {
+    void fetch("/api/auth/onboarding-complete", {
+      method: "POST",
+      credentials: "include",
+    });
+  }
+}
+
+/** True when this device already has saved contacts, routines, or medicines. */
+export function hasReturningUserSetupData(): boolean {
+  if (typeof window === "undefined") return false;
+  if (loadMedicalProfile().medicines.length > 0) return true;
+  if (loadRoutines().length > 0) return true;
+  return loadContacts().some((contact) => contact.phoneNumber.trim().length > 0);
+}
+
+/** Skip the setup wizard for logged-in users who already finished or have saved data. */
+export function ensureSetupCompleteForReturningUser(
+  serverOnboardingComplete = false,
+): void {
+  const current = getOnboardingSnapshot();
+  if (current.setupWizardComplete) return;
+  if (serverOnboardingComplete || hasReturningUserSetupData()) {
+    saveOnboarding({
+      ...current,
+      setupComplete: true,
+      setupWizardComplete: true,
+      setupStep: "complete",
+    });
+  }
 }
 
 /** Call after successful login/signup — lock into setup (or done). */

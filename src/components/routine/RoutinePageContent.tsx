@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { BigButton } from "@/components/BigButton";
+import { ReminderStatusButtons } from "@/components/ReminderStatusButtons";
 import { RoutineCalendar } from "@/components/routine/RoutineCalendar";
 import { useApp } from "@/components/providers/app-provider";
 import { Input } from "@/components/ui/input";
@@ -112,6 +113,7 @@ export function RoutinePageContent() {
                   {kindLabel(item.kind, strings)}
                   {item.time ? ` · ${item.time}` : ""}
                 </p>
+                <ReminderStatusButtons kind="routine" id={item.id} className="mt-3" />
                 <BigButton
                   tone="muted"
                   className="mt-2 min-h-14 text-lg"
