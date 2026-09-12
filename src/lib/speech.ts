@@ -183,22 +183,13 @@ function recorderMimeType(): string {
   return types.find((type) => MediaRecorder.isTypeSupported(type)) || "";
 }
 
-/** Ask for the website mic — must run from a user tap (no delay before this). */
+/** Ask for mic access from a user tap. Native app uses Capgo; browsers use getUserMedia. */
 export async function ensureMicPermission(): Promise<MicPermission> {
   if (typeof window === "undefined") return "unavailable";
 
-  if (navigator.mediaDevices?.getUserMedia) {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stopTracks(stream);
-      return "granted";
-    } catch {
-      // Native plugin may still work even if the website prompt is blocked.
-    }
-  }
-
-  const SpeechRecognition = await loadNativeSpeech();
-  if (SpeechRecognition) {
+  if (isNativeApp()) {
+    const SpeechRecognition = await loadNativeSpeech();
+    if (!SpeechRecognition) return "unavailable";
     try {
       let status = await SpeechRecognition.checkPermissions();
       if (status.speechRecognition !== "granted") {
@@ -208,6 +199,16 @@ export async function ensureMicPermission(): Promise<MicPermission> {
       return "denied";
     } catch {
       return "unavailable";
+    }
+  }
+
+  if (navigator.mediaDevices?.getUserMedia) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stopTracks(stream);
+      return "granted";
+    } catch {
+      return "denied";
     }
   }
 
@@ -474,7 +475,8 @@ async function startNativeOnce(
 
 /**
  * One-shot listen from a user tap.
- * Website mic first (must start in the same tap). Native speech is fallback.
+ * Android app: native speech (WebView SpeechRecognition is a dummy and blocks the mic).
+ * Browser website: Web Speech API, then server transcription.
  */
 export async function listenOnce(options: {
   lang: AppLanguage | string;
@@ -490,63 +492,22 @@ export async function listenOnce(options: {
 
   stopSpeaking();
 
-  const hasWebsiteSpeech = hasWebsiteSpeechApi();
-  if (hasWebsiteSpeech) {
-    const stream = await openWebsiteMic();
-    if (epoch !== listenEpoch) {
-      stopTracks(stream);
-      return { ok: false, error: "canceled" };
-    }
-    const web = await listenWithWebsiteSpeech(language, stream);
+  const native = isNativeApp();
+
+  if (native) {
+    const permission = await ensureMicPermission();
     if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
-    if (web.ok || web.error === "no-speech") return web;
-    if (web.error === "denied") {
-      // Try native next — OS mic permission may still be granted.
-    } else if (web.error !== "unavailable" && web.error !== "failed") {
-      return web;
-    }
-  }
+    if (permission === "denied") return { ok: false, error: "denied" };
 
-  const permission = await ensureMicPermission();
-  if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
-  if (permission === "denied" && !hasWebsiteSpeech) {
-    return { ok: false, error: "denied" };
-  }
-
-  const SpeechRecognition = await loadNativeSpeech();
-  if (SpeechRecognition) {
-    try {
-      const { available } = await SpeechRecognition.available();
-      if (!available) {
-        // Fall through to website recorder.
-      } else {
-        if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
-        await stopNativeIfListening(SpeechRecognition);
-        if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
-
-        let result = await startNativeOnce(SpeechRecognition, {
-          language,
-          prompt,
-          popup: false,
-        });
-        if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
-        if (
-          result.ok ||
-          result.error === "denied" ||
-          result.error === "no-speech"
-        ) {
-          return result;
-        }
-
-        if (
-          result.error === "busy" ||
-          result.error === "canceled" ||
-          result.error === "failed"
-        ) {
-          await forceStopNative(SpeechRecognition);
-          await sleep(450);
+    const SpeechRecognition = await loadNativeSpeech();
+    if (SpeechRecognition) {
+      try {
+        const { available } = await SpeechRecognition.available();
+        if (available) {
+          await stopNativeIfListening(SpeechRecognition);
           if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
-          result = await startNativeOnce(SpeechRecognition, {
+
+          let result = await startNativeOnce(SpeechRecognition, {
             language,
             prompt,
             popup: false,
@@ -559,10 +520,44 @@ export async function listenOnce(options: {
           ) {
             return result;
           }
+
+          if (
+            result.error === "busy" ||
+            result.error === "canceled" ||
+            result.error === "failed"
+          ) {
+            await forceStopNative(SpeechRecognition);
+            await sleep(450);
+            if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
+            result = await startNativeOnce(SpeechRecognition, {
+              language,
+              prompt,
+              popup: false,
+            });
+            if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
+            if (
+              result.ok ||
+              result.error === "denied" ||
+              result.error === "no-speech"
+            ) {
+              return result;
+            }
+          }
         }
+      } catch {
+        // Native plugin missing — use website recorder below.
       }
-    } catch {
-      // Native plugin missing — use website recorder.
+    }
+  } else if (hasWebsiteSpeechApi()) {
+    const stream = await openWebsiteMic();
+    if (epoch !== listenEpoch) {
+      stopTracks(stream);
+      return { ok: false, error: "canceled" };
+    }
+    const web = await listenWithWebsiteSpeech(language, stream);
+    if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
+    if (web.ok || web.error === "no-speech" || web.error === "denied") {
+      return web;
     }
   }
 
