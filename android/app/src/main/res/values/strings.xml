@@ -4,4 +4,6 @@
     <string name="title_activity_main">UNK AI</string>
     <string name="package_name">ai.unk.app</string>
     <string name="custom_url_scheme">ai.unk.app</string>
+    <string name="unk_mic_idle">Tap to speak</string>
+    <string name="unk_mic_listen">Listening… speak now</string>
 </resources>

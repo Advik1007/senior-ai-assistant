@@ -9,6 +9,20 @@
     <WebView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:layout_marginBottom="112dp"
         android:scrollbars="vertical"
         android:overScrollMode="ifContentScrolls" />
+
+    <Button
+        android:id="@+id/unk_mic_button"
+        android:layout_width="match_parent"
+        android:layout_height="96dp"
+        android:layout_gravity="bottom"
+        android:layout_margin="8dp"
+        android:background="@drawable/unk_mic_idle"
+        android:text="@string/unk_mic_idle"
+        android:textAllCaps="false"
+        android:textColor="#0B1F3A"
+        android:textSize="22sp"
+        android:textStyle="bold" />
 </FrameLayout>

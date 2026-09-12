@@ -133,13 +133,14 @@ export function VoiceAssistant({
 }) {
   const { contacts, prefs, strings, profile } = useApp();
   const router = useRouter();
-  const [phase, setPhase] = useState<VoicePhase>("listening");
+  const [phase, setPhase] = useState<VoicePhase>("idle");
   const [log, setLog] = useState<string[]>([]);
   const [typed, setTyped] = useState("");
   const [pendingCall, setPendingCall] = useState<Contact | null>(null);
   const [voiceSupported, setVoiceSupported] = useState(true);
   const [micHint, setMicHint] = useState<string | null>(null);
-  const [micBusy, setMicBusy] = useState(true);
+  const [micBusy, setMicBusy] = useState(false);
+  const [nativeMic, setNativeMic] = useState(false);
 
   const pendingCallRef = useRef<Contact | null>(null);
   const offerFamilyRef = useRef(false);
@@ -148,7 +149,6 @@ export function VoiceAssistant({
   const handleUtteranceRef = useRef<(text: string) => void>(() => {});
   const startedRef = useRef(false);
   const listenGenRef = useRef(0);
-  const ignoreStopUntilRef = useRef(0);
 
   const addLog = useCallback((line: string) => {
     setLog((prev) => [...prev.slice(-6), line]);
@@ -372,8 +372,6 @@ export function VoiceAssistant({
   }, [prefs.language]);
 
   function toggleMic() {
-    // The tap that opened Talk often lands on this bar and would stop it.
-    if (Date.now() < ignoreStopUntilRef.current) return;
     if (phase === "listening" || micBusy) {
       stopListening();
       setPhase("idle");
@@ -395,16 +393,61 @@ export function VoiceAssistant({
   }, [startListening]);
 
   useEffect(() => {
+    const win = window as Window & { __UNK_NATIVE_MIC?: boolean };
+    if (win.__UNK_NATIVE_MIC) setNativeMic(true);
+
+    const onListening = () => {
+      setNativeMic(true);
+      setMicBusy(true);
+      setPhase("listening");
+      setMicHint(null);
+    };
+    const onIdle = () => {
+      setMicBusy(false);
+      setPhase("idle");
+    };
+    const onTranscript = (event: Event) => {
+      const text =
+        (event as CustomEvent<{ text?: string }>).detail?.text?.trim() ?? "";
+      setMicBusy(false);
+      setPhase("idle");
+      if (text) handleUtteranceRef.current(text);
+    };
+    const onError = (event: Event) => {
+      const code = (event as CustomEvent<{ text?: string }>).detail?.text ?? "";
+      setMicBusy(false);
+      setPhase("idle");
+      if (code === "no-speech") {
+        setMicHint("I did not catch that. Tap the gold bar at the bottom and speak.");
+      } else if (code === "unavailable") {
+        setVoiceSupported(false);
+        setMicHint("Speech recognition is not available on this phone. You can still type below.");
+      } else {
+        setMicHint("Could not hear you. Tap the gold bar at the bottom and try again.");
+      }
+    };
+
+    window.addEventListener("unk-native-listening", onListening);
+    window.addEventListener("unk-native-idle", onIdle);
+    window.addEventListener("unk-native-transcript", onTranscript);
+    window.addEventListener("unk-native-error", onError);
+    return () => {
+      window.removeEventListener("unk-native-listening", onListening);
+      window.removeEventListener("unk-native-idle", onIdle);
+      window.removeEventListener("unk-native-transcript", onTranscript);
+      window.removeEventListener("unk-native-error", onError);
+    };
+  }, []);
+
+  useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
-    ignoreStopUntilRef.current = Date.now() + 2000;
-    const start = window.setTimeout(() => startListening(), 500);
+    speak(greeting, false);
     return () => {
-      window.clearTimeout(start);
       stopSpeaking();
       stopListening();
     };
-    // Start after the opening tap finishes so that tap cannot stop the mic.
+    // Greeting once when this screen opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -424,13 +467,19 @@ export function VoiceAssistant({
         idleLabel={strings.tapToSpeak}
       />
 
-      <MicListenLink
-        listening={phase === "listening" || micBusy}
-        label={
-          phase === "listening" || micBusy ? strings.stop : strings.tapToSpeak
-        }
-        onPress={toggleMic}
-      />
+      {!nativeMic ? (
+        <MicListenLink
+          listening={phase === "listening" || micBusy}
+          label={
+            phase === "listening" || micBusy ? strings.stop : strings.tapToSpeak
+          }
+          onPress={toggleMic}
+        />
+      ) : (
+        <p className="rounded-2xl bg-[#FFF4CC] p-4 text-xl font-semibold text-[#0B1F3A]">
+          Tap the gold bar at the bottom of the screen, then speak.
+        </p>
+      )}
 
       {!voiceSupported ? (
         <p className="rounded-2xl bg-[#FFF4CC] p-4 text-xl font-semibold text-[#0B1F3A]">
