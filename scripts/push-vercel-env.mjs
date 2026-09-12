@@ -18,6 +18,8 @@ const OPTIONAL = [
   "SMTP_USER",
   "SMTP_PASS",
   "SMTP_FROM",
+  "GEMINI_API_KEY",
+  "AI_MODEL",
 ];
 
 function loadEnvLocal() {
@@ -65,7 +67,10 @@ console.log(`Pushing env vars to Vercel (${targets})…\n`);
 for (const key of toPush) {
   let value = values[key];
   if (key === "SMTP_PASS") value = value.replace(/\s+/g, "");
-  const sensitive = key === "SMTP_PASS" || key === "AUTH_SECRET" ? ["--sensitive"] : ["--no-sensitive"];
+  const sensitive =
+    key === "SMTP_PASS" || key === "AUTH_SECRET" || key === "GEMINI_API_KEY"
+      ? ["--sensitive"]
+      : ["--no-sensitive"];
   execSync(
     `npx vercel env add ${key} ${targets} --yes --force ${sensitive.join(" ")} --project senior-ai-assistant --scope advik1007`,
     {

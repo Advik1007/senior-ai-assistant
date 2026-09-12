@@ -187,12 +187,86 @@ function recorderMimeType(): string {
 type UnkMicBridge = {
   hasMicPermission?: () => boolean;
   requestMicPermission?: () => void;
+  startRecording?: () => boolean;
+  stopRecording?: () => string;
 };
 
 function nativeMicBridge(): UnkMicBridge | null {
   if (typeof window === "undefined") return null;
   const bridge = (window as Window & { UnkMic?: UnkMicBridge }).UnkMic;
   return bridge ?? null;
+}
+
+function stopNativeCapture(): void {
+  try {
+    nativeMicBridge()?.stopRecording?.();
+  } catch {
+    // ignore
+  }
+}
+
+async function transcribeAudioBlob(
+  blob: Blob,
+  language: string,
+  epoch: number,
+  filename: string,
+): Promise<ListenOnceResult> {
+  if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
+  if (blob.size < 200) return { ok: false, error: "no-speech" };
+  try {
+    const form = new FormData();
+    form.append("audio", blob, filename);
+    form.append("lang", language);
+    const res = await fetch("/api/transcribe", { method: "POST", body: form });
+    if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: res.status === 503 ? "unavailable" : "failed",
+      };
+    }
+    const data = (await res.json()) as { transcript?: string };
+    const transcript = data.transcript?.trim() ?? "";
+    return transcript
+      ? { ok: true, transcript }
+      : { ok: false, error: "no-speech" };
+  } catch {
+    return { ok: false, error: "failed" };
+  }
+}
+
+/** Record on the phone, then Gemini turns the audio into words. */
+async function listenWithNativeGemini(
+  language: string,
+  epoch: number,
+): Promise<ListenOnceResult | null> {
+  const bridge = nativeMicBridge();
+  if (!bridge?.startRecording || !bridge.stopRecording) return null;
+
+  let started = false;
+  try {
+    started = Boolean(bridge.startRecording());
+  } catch {
+    return null;
+  }
+  if (!started) return { ok: false, error: "denied" };
+
+  websiteAbort = () => stopNativeCapture();
+  await sleep(6500);
+
+  let b64 = "";
+  try {
+    b64 = bridge.stopRecording() || "";
+  } catch {
+    b64 = "";
+  }
+  websiteAbort = null;
+  if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
+  if (!b64) return { ok: false, error: "no-speech" };
+
+  const binary = Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0));
+  const blob = new Blob([binary], { type: "audio/mp4" });
+  return transcribeAudioBlob(blob, language, epoch, "speech.m4a");
 }
 
 /** Android runtime RECORD_AUDIO dialog from MainActivity (not the website). */
@@ -568,42 +642,8 @@ export async function listenOnce(options: {
     if (permission === "denied") return { ok: false, error: "denied" };
     if (permission === "prompted") return { ok: false, error: "needs-tap" };
 
-    const SpeechRecognition = await loadNativeSpeech();
-    if (SpeechRecognition) {
-      try {
-        const { available } = await SpeechRecognition.available();
-        if (available) {
-          await stopNativeIfListening(SpeechRecognition);
-          if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
-
-          // Android's reliable STT is the system "Speak now" dialog.
-          let result = await startNativeOnce(SpeechRecognition, {
-            language,
-            prompt,
-            popup: true,
-          });
-          if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
-          if (result.ok || result.error === "denied") return result;
-
-          await forceStopNative(SpeechRecognition);
-          await sleep(400);
-          if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
-
-          result = await startNativeOnce(SpeechRecognition, {
-            language,
-            prompt,
-            popup: false,
-          });
-          if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
-          if (result.ok || result.error === "denied") return result;
-
-          await forceStopNative(SpeechRecognition);
-          await sleep(250);
-        }
-      } catch {
-        // Native plugin missing — use recorder below.
-      }
-    }
+    const geminiListen = await listenWithNativeGemini(language, epoch);
+    if (geminiListen) return geminiListen;
   } else if (hasWebsiteSpeechApi()) {
     const stream = await openWebsiteMic();
     if (epoch !== listenEpoch) {
@@ -627,6 +667,7 @@ export async function cancelListen(): Promise<void> {
   listenEpoch += 1;
   websiteAbort?.();
   websiteAbort = null;
+  stopNativeCapture();
   const SpeechRecognition = await loadNativeSpeech();
   if (SpeechRecognition) {
     await forceStopNative(SpeechRecognition);

@@ -1,25 +1,15 @@
 import "server-only";
 
+import {
+  geminiGenerateContent,
+  isGeminiKey,
+  resolveAiApiKey,
+} from "@/lib/ai/gemini";
+
 export type ChatMessage = {
   role: "system" | "user" | "assistant";
   content: string;
 };
-
-function resolveApiKey(): string | null {
-  return (
-    process.env.GEMINI_API_KEY?.trim() ||
-    process.env.AI_API_KEY?.trim() ||
-    null
-  );
-}
-
-function isGeminiKey(key: string): boolean {
-  return (
-    key.startsWith("AQ.") ||
-    key.startsWith("AIza") ||
-    Boolean(process.env.GEMINI_API_KEY?.trim())
-  );
-}
 
 /**
  * JSON chat completion via Gemini (native) or OpenAI, depending on the key.
@@ -29,24 +19,20 @@ export async function completeJsonChat(input: {
   messages: ChatMessage[];
   temperature?: number;
 }): Promise<string | null> {
-  const apiKey = resolveApiKey();
+  const apiKey = resolveAiApiKey();
   if (!apiKey) return null;
 
   if (isGeminiKey(apiKey)) {
-    return completeWithGemini(apiKey, input);
+    return completeWithGemini(input);
   }
   return completeWithOpenAI(apiKey, input);
 }
 
-async function completeWithGemini(
-  apiKey: string,
-  input: {
-    system: string;
-    messages: ChatMessage[];
-    temperature?: number;
-  },
-): Promise<string | null> {
-  const model = process.env.AI_MODEL?.trim() || "gemini-3.6-flash";
+async function completeWithGemini(input: {
+  system: string;
+  messages: ChatMessage[];
+  temperature?: number;
+}): Promise<string | null> {
   const contents = input.messages
     .filter((m) => m.role !== "system")
     .map((m) => ({
@@ -59,32 +45,12 @@ async function completeWithGemini(
     ...input.messages.filter((m) => m.role === "system").map((m) => m.content),
   ].filter(Boolean);
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [{ text: systemBits.join("\n\n") }],
-        },
-        contents,
-        generationConfig: {
-          temperature: input.temperature ?? 0.4,
-          responseMimeType: "application/json",
-        },
-      }),
-    },
-  );
-
-  if (!res.ok) return null;
-
-  const data = (await res.json()) as {
-    candidates?: Array<{
-      content?: { parts?: Array<{ text?: string }> };
-    }>;
-  };
-  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
+  return geminiGenerateContent({
+    system: systemBits.join("\n\n"),
+    contents,
+    json: true,
+    temperature: input.temperature ?? 0.4,
+  });
 }
 
 async function completeWithOpenAI(
@@ -121,5 +87,5 @@ async function completeWithOpenAI(
 }
 
 export function hasAiApiKey(): boolean {
-  return Boolean(resolveApiKey());
+  return Boolean(resolveAiApiKey());
 }

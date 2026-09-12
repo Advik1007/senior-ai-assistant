@@ -1,20 +1,10 @@
 import "server-only";
 
-function resolveApiKey(): string | null {
-  return (
-    process.env.GEMINI_API_KEY?.trim() ||
-    process.env.AI_API_KEY?.trim() ||
-    null
-  );
-}
-
-function isGeminiKey(key: string): boolean {
-  return (
-    key.startsWith("AQ.") ||
-    key.startsWith("AIza") ||
-    Boolean(process.env.GEMINI_API_KEY?.trim())
-  );
-}
+import {
+  geminiGenerateContent,
+  isGeminiKey,
+  resolveAiApiKey,
+} from "@/lib/ai/gemini";
 
 function languageHint(lang: string): string {
   const trimmed = lang.trim();
@@ -30,54 +20,39 @@ export async function transcribeAudio(input: {
   mimeType: string;
   lang: string;
 }): Promise<string | null> {
-  const apiKey = resolveApiKey();
+  const apiKey = resolveAiApiKey();
   if (!apiKey) return null;
 
   if (isGeminiKey(apiKey)) {
-    return transcribeWithGemini(apiKey, input);
+    return transcribeWithGemini(input);
   }
   return transcribeWithOpenAI(apiKey, input);
 }
 
-async function transcribeWithGemini(
-  apiKey: string,
-  input: { bytes: Buffer; mimeType: string; lang: string },
-): Promise<string | null> {
-  const model = process.env.AI_MODEL?.trim() || "gemini-2.0-flash";
-  const mime = input.mimeType.split(";")[0] || "audio/webm";
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [
-            {
-              text: `Transcribe spoken audio. Language hint: ${languageHint(input.lang)}. Reply with JSON only: {"transcript":"..."} . If there is no speech, use an empty transcript.`,
-            },
-          ],
-        },
-        contents: [
+async function transcribeWithGemini(input: {
+  bytes: Buffer;
+  mimeType: string;
+  lang: string;
+}): Promise<string | null> {
+  const mime = input.mimeType.split(";")[0] || "audio/mp4";
+  const raw = await geminiGenerateContent({
+    system: `Transcribe spoken audio. Language hint: ${languageHint(input.lang)}. Reply with JSON only: {"transcript":"..."} . If there is no speech, use an empty transcript.`,
+    json: true,
+    temperature: 0,
+    contents: [
+      {
+        role: "user",
+        parts: [
           {
-            role: "user",
-            parts: [
-              { inlineData: { mimeType: mime, data: input.bytes.toString("base64") } },
-            ],
+            inlineData: {
+              mimeType: mime,
+              data: input.bytes.toString("base64"),
+            },
           },
         ],
-        generationConfig: {
-          temperature: 0,
-          responseMimeType: "application/json",
-        },
-      }),
-    },
-  );
-  if (!res.ok) return null;
-  const data = (await res.json()) as {
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-  };
-  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+      },
+    ],
+  });
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as { transcript?: unknown };
@@ -109,5 +84,5 @@ async function transcribeWithOpenAI(
 }
 
 export function canTranscribeAudio(): boolean {
-  return Boolean(resolveApiKey());
+  return Boolean(resolveAiApiKey());
 }

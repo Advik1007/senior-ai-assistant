@@ -333,6 +333,7 @@ export function VoiceAssistant({
     setVoiceSupported(true);
     setMicBusy(true);
     setPhase("listening");
+    addLog("Listening… speak now");
 
     void (async () => {
       const result = await listenOnce({
@@ -353,9 +354,8 @@ export function VoiceAssistant({
           "Microphone permission is blocked. Open phone Settings → Apps → UNK AI → Permissions → Microphone → Allow, then tap again.",
         );
       } else if (result.error === "unavailable") {
-        setVoiceSupported(false);
         setMicHint(
-          "Speech recognition is not available on this phone. You can still type below.",
+          "Gemini could not read the audio. Check the internet, then tap the gold button again.",
         );
       } else if (result.error === "no-speech") {
         setMicHint("I did not catch that. Tap the mic and speak again.");
@@ -364,15 +364,16 @@ export function VoiceAssistant({
       } else if (result.error === "needs-tap") {
         setMicHint("Microphone is allowed. Tap the gold button again, then speak.");
       } else if (result.error === "canceled") {
-        setMicHint("Tap the gold button, then speak when the phone says it is listening.");
+        setMicHint("Tap the gold button, then speak.");
       } else {
         setMicHint(
           "Could not start the microphone. Check Microphone permission, then tap again.",
         );
       }
+      addLog("UNK: I did not catch that. Tap the gold button and speak.");
       setPhase("idle");
     })();
-  }, [prefs.language]);
+  }, [addLog, prefs.language]);
 
   function toggleMic() {
     if (phase === "listening" || micBusy) {
