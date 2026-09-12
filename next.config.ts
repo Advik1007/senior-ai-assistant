@@ -28,6 +28,18 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        source: "/talk",
+        headers: [
+          { key: "Cache-Control", value: "no-store, must-revalidate" },
+        ],
+      },
+      {
+        source: "/home",
+        headers: [
+          { key: "Cache-Control", value: "no-store, must-revalidate" },
+        ],
+      },
+      {
         source: "/downloads/:path*.apk",
         headers: [
           {

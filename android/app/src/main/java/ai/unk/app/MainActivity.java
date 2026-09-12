@@ -82,11 +82,13 @@ public class MainActivity extends BridgeActivity {
     settings.setJavaScriptEnabled(true);
     settings.setDomStorageEnabled(true);
     settings.setMediaPlaybackRequiresUserGesture(false);
+    settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
 
     if (webViewTuned) {
       return;
     }
     webViewTuned = true;
+    webView.clearCache(true);
 
     // Page scroll must live in the WebView document (CSS), not a parent scroller.
     webView.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
@@ -101,7 +103,6 @@ public class MainActivity extends BridgeActivity {
     // Web SQL is unused; keep disabled to reduce attack surface.
     settings.setDatabaseEnabled(false);
     settings.setGeolocationEnabled(false);
-    settings.setCacheMode(WebSettings.LOAD_DEFAULT);
     settings.setSaveFormData(false);
     // Allow file access only when loading local offline assets; remote HTTPS app
     // content does not need broad file:// access.

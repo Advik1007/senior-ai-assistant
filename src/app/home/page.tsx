@@ -28,7 +28,7 @@ export default function HomePage() {
       <TodayReminders />
 
       <BigButton
-        href="/talk"
+        href="/talk?listen=1"
         tone="gold"
         className="min-h-[5rem] text-2xl"
         icon={<Mic className="size-7" />}

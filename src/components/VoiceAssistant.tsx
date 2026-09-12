@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Mic } from "lucide-react";
 import { interpretUserSpeech } from "@/lib/ai/local-assistant";
 import { aiPhrase } from "@/lib/ai/phrases";
 import {
@@ -25,10 +24,10 @@ import { findContactByName, findContactByRelationship } from "@/lib/storage/cont
 import { addRoutine } from "@/lib/storage/routines";
 import { useApp } from "@/components/providers/app-provider";
 import { BigButton } from "@/components/BigButton";
+import { MicListenLink } from "@/components/MicListenLink";
 import { ConfirmCallDialog } from "@/components/ConfirmCallDialog";
 import {
   VoiceStatus,
-  micButtonTone,
   type VoicePhase,
 } from "@/components/VoiceStatus";
 import { Textarea } from "@/components/ui/textarea";
@@ -395,12 +394,13 @@ export function VoiceAssistant({
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
-    speak(greeting, false);
+    startListening();
     return () => {
       stopSpeaking();
       stopListening();
     };
-    // Greeting once when this screen opens.
+    // Start listening as soon as Talk opens so the bar turns red
+    // even if the first tap is missed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -418,17 +418,15 @@ export function VoiceAssistant({
         listeningLabel={strings.listening}
         speakingLabel={strings.speaking}
         idleLabel={strings.tapToSpeak}
-        onPress={toggleMic}
       />
 
-      <BigButton
-        tone={micButtonTone(phase, micBusy)}
-        icon={<Mic className="size-7" />}
-        onClick={toggleMic}
-        className="relative z-20 min-h-[5.5rem] text-2xl"
-      >
-        {phase === "listening" || micBusy ? strings.stop : strings.tapToSpeak}
-      </BigButton>
+      <MicListenLink
+        listening={phase === "listening" || micBusy}
+        label={
+          phase === "listening" || micBusy ? strings.stop : strings.tapToSpeak
+        }
+        onPress={toggleMic}
+      />
 
       {!voiceSupported ? (
         <p className="rounded-2xl bg-[#FFF4CC] p-4 text-xl font-semibold text-[#0B1F3A]">
