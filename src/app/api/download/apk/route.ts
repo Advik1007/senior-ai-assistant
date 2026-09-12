@@ -20,7 +20,7 @@ export async function GET() {
         "Content-Type": "application/vnd.android.package-archive",
         "Content-Disposition": `attachment; filename="${FILENAME}"`,
         "Content-Length": String(data.byteLength),
-        "Cache-Control": "public, max-age=3600",
+        "Cache-Control": "no-store, must-revalidate",
       },
     });
   } catch {

@@ -1,7 +1,7 @@
 import { Download } from "lucide-react";
 
 /** Production release APK served from /public/downloads. */
-export const RELEASE_APK_HREF = "/downloads/unk-ai-release.apk";
+export const RELEASE_APK_HREF = "/downloads/unk-ai-release.apk?v=1.0.7";
 export const RELEASE_APK_FILENAME = "unk-ai-release.apk";
 
 type Props = {

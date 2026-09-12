@@ -109,6 +109,10 @@ const apkDest = path.join(outDir, `unk-ai-release-${stamp}.apk`);
 const mappingDest = path.join(outDir, `mapping-release-${stamp}.txt`);
 
 fs.copyFileSync(apkSrc, apkDest);
+const publicDir = path.join(root, "public", "downloads");
+fs.mkdirSync(publicDir, { recursive: true });
+fs.copyFileSync(apkSrc, path.join(publicDir, "unk-ai-release.apk"));
+fs.copyFileSync(apkSrc, path.join(publicDir, "unk-ai.apk"));
 if (fs.existsSync(mappingSrc)) {
   fs.copyFileSync(mappingSrc, mappingDest);
 }

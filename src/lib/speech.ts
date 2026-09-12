@@ -188,6 +188,8 @@ type UnkMicBridge = {
   hasMicPermission?: () => boolean;
   requestMicPermission?: () => void;
   startSpeakNow?: (language: string) => void;
+  speak?: (text: string, language: string, rate: string) => void;
+  stopSpeak?: () => void;
   startRecording?: () => boolean;
   stopRecording?: () => string;
 };
@@ -816,7 +818,9 @@ export function getSpeechRecognition(): SpeechRecognitionLike | null {
 }
 
 export function canSpeak(): boolean {
-  return typeof window !== "undefined" && "speechSynthesis" in window;
+  if (typeof window === "undefined") return false;
+  if (nativeMicBridge()?.speak) return true;
+  return "speechSynthesis" in window;
 }
 
 export function speechLocale(lang: AppLanguage | string): string {
@@ -826,38 +830,150 @@ export function speechLocale(lang: AppLanguage | string): string {
   return languageByCode(lang as AppLanguage).speechLang;
 }
 
+function spokenPlainText(text: string): string {
+  return text
+    .replace(/\[(.*?)\]\(.*?\)/g, "$1")
+    .replace(/[*_#`>~]+/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function pickWebVoice(locale: string): SpeechSynthesisVoice | null {
+  const voices = window.speechSynthesis.getVoices();
+  const lang = locale.slice(0, 2).toLowerCase();
+  let best: SpeechSynthesisVoice | null = null;
+  let bestScore = -1;
+  for (const voice of voices) {
+    const voiceLang = voice.lang.toLowerCase();
+    if (voiceLang !== locale.toLowerCase() && !voiceLang.startsWith(lang)) {
+      continue;
+    }
+    let score = voiceLang === locale.toLowerCase() ? 80 : 40;
+    const name = voice.name.toLowerCase();
+    if (name.includes("google")) score += 30;
+    if (
+      name.includes("natural") ||
+      name.includes("neural") ||
+      name.includes("enhanced") ||
+      name.includes("premium")
+    ) {
+      score += 20;
+    }
+    if (
+      name.includes("female") ||
+      name.includes("samantha") ||
+      name.includes("zira") ||
+      name.includes("vaani") ||
+      name.includes("kavya")
+    ) {
+      score += 15;
+    }
+    if (
+      name.includes("compact") ||
+      name.includes("eloquence") ||
+      name.includes("robot")
+    ) {
+      score -= 25;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      best = voice;
+    }
+  }
+  return best;
+}
+
+let ttsEndListener: ((event: Event) => void) | null = null;
+let ttsWatchdog = 0;
+
+function clearTtsWait(): void {
+  if (ttsEndListener) {
+    window.removeEventListener("unk-tts-end", ttsEndListener);
+    ttsEndListener = null;
+  }
+  if (ttsWatchdog) {
+    window.clearTimeout(ttsWatchdog);
+    ttsWatchdog = 0;
+  }
+}
+
 export function speakText(
   text: string,
   options: { rate: number; lang: AppLanguage | string; onend?: () => void },
 ): void {
-  if (!canSpeak()) {
+  const spoken = spokenPlainText(text);
+  if (!spoken) {
     options.onend?.();
     return;
   }
+
   stopSpeaking();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = options.rate;
   const locale = speechLocale(options.lang);
-  utterance.lang = locale;
+  const rate = Math.max(0.7, Math.min(options.rate || 0.9, 1.05));
+  const bridge = nativeMicBridge();
 
-  const voices = window.speechSynthesis.getVoices();
-  const langCode = locale.slice(0, 2).toLowerCase();
-  const matched =
-    voices.find((v) => v.lang.toLowerCase() === locale.toLowerCase()) ||
-    voices.find((v) => v.lang.toLowerCase().startsWith(langCode));
-  if (matched) utterance.voice = matched;
+  if (bridge?.speak) {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTtsWait();
+      options.onend?.();
+    };
+    ttsEndListener = () => finish();
+    window.addEventListener("unk-tts-end", ttsEndListener);
+    ttsWatchdog = window.setTimeout(
+      finish,
+      Math.min(60_000, 1200 + spoken.length * 90),
+    );
+    try {
+      bridge.speak(spoken, locale, String(rate));
+    } catch {
+      finish();
+    }
+    return;
+  }
 
-  utterance.onend = () => options.onend?.();
-  utterance.onerror = () => options.onend?.();
-  window.speechSynthesis.speak(utterance);
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+    options.onend?.();
+    return;
+  }
+
+  let started = false;
+  const start = () => {
+    if (started) return;
+    started = true;
+    const utterance = new SpeechSynthesisUtterance(spoken);
+    utterance.rate = rate;
+    utterance.pitch = 1.04;
+    utterance.lang = locale;
+    const voice = pickWebVoice(locale);
+    if (voice) utterance.voice = voice;
+    utterance.onend = () => options.onend?.();
+    utterance.onerror = () => options.onend?.();
+    window.speechSynthesis.speak(utterance);
+  };
+
+  if (!window.speechSynthesis.getVoices().length) {
+    window.speechSynthesis.addEventListener("voiceschanged", start, {
+      once: true,
+    });
+    window.setTimeout(start, 500);
+    return;
+  }
+  start();
 }
 
 export function stopSpeaking(): void {
   if (typeof window === "undefined") return;
+  clearTtsWait();
+  try {
+    nativeMicBridge()?.stopSpeak?.();
+  } catch {
+    // ignore
+  }
   if (!("speechSynthesis" in window)) return;
   try {
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.pause();
     window.speechSynthesis.cancel();
   } catch {
     // ignore

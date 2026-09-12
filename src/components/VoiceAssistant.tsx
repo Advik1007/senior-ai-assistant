@@ -150,6 +150,7 @@ export function VoiceAssistant({
   const startedRef = useRef(false);
   const listenGenRef = useRef(0);
   const listenStartedAt = useRef(0);
+  const speakGenRef = useRef(0);
 
   const addLog = useCallback((line: string) => {
     setLog((prev) => [...prev.slice(-6), line]);
@@ -163,6 +164,7 @@ export function VoiceAssistant({
 
   const speak = useCallback(
     (text: string, thenListen: boolean) => {
+      const gen = ++speakGenRef.current;
       stopListening();
       listenAfterSpeakRef.current = thenListen;
       setPhase("speaking");
@@ -171,8 +173,9 @@ export function VoiceAssistant({
         rate: prefs.voiceSpeed,
         lang: prefs.language,
         onend: () => {
+          if (gen !== speakGenRef.current) return;
           if (listenAfterSpeakRef.current) {
-            window.setTimeout(() => startListeningRef.current(), 350);
+            window.setTimeout(() => startListeningRef.current(), 400);
           } else {
             setPhase("idle");
           }
@@ -327,6 +330,7 @@ export function VoiceAssistant({
   );
 
   const startListening = useCallback(() => {
+    speakGenRef.current += 1;
     const gen = ++listenGenRef.current;
     stopSpeaking();
     setMicHint(null);
