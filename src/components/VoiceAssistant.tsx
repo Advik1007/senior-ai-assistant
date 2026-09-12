@@ -133,13 +133,13 @@ export function VoiceAssistant({
 }) {
   const { contacts, prefs, strings, profile } = useApp();
   const router = useRouter();
-  const [phase, setPhase] = useState<VoicePhase>("idle");
+  const [phase, setPhase] = useState<VoicePhase>("listening");
   const [log, setLog] = useState<string[]>([]);
   const [typed, setTyped] = useState("");
   const [pendingCall, setPendingCall] = useState<Contact | null>(null);
   const [voiceSupported, setVoiceSupported] = useState(true);
   const [micHint, setMicHint] = useState<string | null>(null);
-  const [micBusy, setMicBusy] = useState(false);
+  const [micBusy, setMicBusy] = useState(true);
 
   const pendingCallRef = useRef<Contact | null>(null);
   const offerFamilyRef = useRef(false);
@@ -148,6 +148,7 @@ export function VoiceAssistant({
   const handleUtteranceRef = useRef<(text: string) => void>(() => {});
   const startedRef = useRef(false);
   const listenGenRef = useRef(0);
+  const ignoreStopUntilRef = useRef(0);
 
   const addLog = useCallback((line: string) => {
     setLog((prev) => [...prev.slice(-6), line]);
@@ -371,6 +372,8 @@ export function VoiceAssistant({
   }, [prefs.language]);
 
   function toggleMic() {
+    // The tap that opened Talk often lands on this bar and would stop it.
+    if (Date.now() < ignoreStopUntilRef.current) return;
     if (phase === "listening" || micBusy) {
       stopListening();
       setPhase("idle");
@@ -394,13 +397,14 @@ export function VoiceAssistant({
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
-    startListening();
+    ignoreStopUntilRef.current = Date.now() + 2000;
+    const start = window.setTimeout(() => startListening(), 500);
     return () => {
+      window.clearTimeout(start);
       stopSpeaking();
       stopListening();
     };
-    // Start listening as soon as Talk opens so the bar turns red
-    // even if the first tap is missed.
+    // Start after the opening tap finishes so that tap cannot stop the mic.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

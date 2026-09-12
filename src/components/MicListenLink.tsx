@@ -23,21 +23,28 @@ export function MicListenLink({
   useLayoutEffect(() => {
     const el = document.getElementById("unk-mic-link");
     if (!el) return;
-    const fire = (event: Event) => {
-      if (event.type === "click") event.preventDefault();
-      const now = Date.now();
-      if (now - last.current < 300) return;
-      last.current = now;
-      onPressRef.current();
-    };
-    const opts: AddEventListenerOptions = { capture: true };
-    el.addEventListener("click", fire, opts);
-    el.addEventListener("touchstart", fire, opts);
-    el.addEventListener("pointerdown", fire, opts);
+    let fire: ((event: Event) => void) | null = null;
+    let opts: AddEventListenerOptions | null = null;
+    const ready = window.setTimeout(() => {
+      fire = (event: Event) => {
+        if (event.type === "click") event.preventDefault();
+        const now = Date.now();
+        if (now - last.current < 300) return;
+        last.current = now;
+        onPressRef.current();
+      };
+      opts = { capture: true };
+      el.addEventListener("click", fire, opts);
+      el.addEventListener("touchstart", fire, opts);
+      el.addEventListener("pointerdown", fire, opts);
+    }, 800);
     return () => {
-      el.removeEventListener("click", fire, opts);
-      el.removeEventListener("touchstart", fire, opts);
-      el.removeEventListener("pointerdown", fire, opts);
+      window.clearTimeout(ready);
+      if (fire && opts) {
+        el.removeEventListener("click", fire, opts);
+        el.removeEventListener("touchstart", fire, opts);
+        el.removeEventListener("pointerdown", fire, opts);
+      }
     };
   }, []);
 
