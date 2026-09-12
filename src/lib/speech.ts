@@ -1,7 +1,7 @@
 /**
  * Speech helpers.
- * Prefer the website microphone (Web Speech + getUserMedia) from a user tap.
- * Native Capgo is a fallback inside the Android app. Server transcription is last.
+ * Android app: open the system Speak now popup from the gold button tap.
+ * Browser website: Web Speech API, then server transcription.
  */
 
 import { Capacitor } from "@capacitor/core";
@@ -187,14 +187,84 @@ function recorderMimeType(): string {
 type UnkMicBridge = {
   hasMicPermission?: () => boolean;
   requestMicPermission?: () => void;
+  startSpeakNow?: (language: string) => void;
   startRecording?: () => boolean;
   stopRecording?: () => string;
 };
+
+let speakNowArmed = false;
+
+/** Open Android's Speak now popup from the same tap as the gold button. */
+export function beginSpeakNowFromTap(language: string): void {
+  const bridge = nativeMicBridge();
+  if (!bridge?.startSpeakNow) return;
+  speakNowArmed = true;
+  try {
+    bridge.startSpeakNow(language);
+  } catch {
+    speakNowArmed = false;
+  }
+}
 
 function nativeMicBridge(): UnkMicBridge | null {
   if (typeof window === "undefined") return null;
   const bridge = (window as Window & { UnkMic?: UnkMicBridge }).UnkMic;
   return bridge ?? null;
+}
+
+async function listenWithSpeakNow(
+  language: string,
+  epoch: number,
+): Promise<ListenOnceResult | null> {
+  const bridge = nativeMicBridge();
+  if (!bridge?.startSpeakNow) return null;
+  if (!speakNowArmed) {
+    try {
+      bridge.startSpeakNow(language);
+    } catch {
+      return null;
+    }
+  }
+  speakNowArmed = false;
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value: ListenOnceResult) => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener("unk-speak-now", onEvent);
+      window.clearTimeout(timer);
+      websiteAbort = null;
+      resolve(epoch !== listenEpoch ? { ok: false, error: "canceled" } : value);
+    };
+    const onEvent = (event: Event) => {
+      const detail = (
+        event as CustomEvent<{ ok?: boolean; text?: string; error?: string }>
+      ).detail;
+      const text = detail?.text?.trim() ?? "";
+      if (detail?.ok && text) {
+        finish({ ok: true, transcript: text });
+        return;
+      }
+      const err = detail?.error;
+      if (
+        err === "denied" ||
+        err === "unavailable" ||
+        err === "no-speech" ||
+        err === "canceled"
+      ) {
+        finish({ ok: false, error: err });
+        return;
+      }
+      finish({ ok: false, error: "canceled" });
+    };
+    websiteAbort = () => finish({ ok: false, error: "canceled" });
+    const timer = window.setTimeout(
+      () => finish({ ok: false, error: "no-speech" }),
+      30000,
+    );
+    window.addEventListener("unk-speak-now", onEvent);
+  });
 }
 
 function stopNativeCapture(): void {
@@ -637,13 +707,8 @@ export async function listenOnce(options: {
   const native = isNativeApp();
 
   if (native) {
-    const permission = await ensureMicPermission();
-    if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
-    if (permission === "denied") return { ok: false, error: "denied" };
-    if (permission === "prompted") return { ok: false, error: "needs-tap" };
-
-    const geminiListen = await listenWithNativeGemini(language, epoch);
-    if (geminiListen) return geminiListen;
+    const speakNow = await listenWithSpeakNow(language, epoch);
+    if (speakNow) return speakNow;
   } else if (hasWebsiteSpeechApi()) {
     const stream = await openWebsiteMic();
     if (epoch !== listenEpoch) {

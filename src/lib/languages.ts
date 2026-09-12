@@ -7,13 +7,7 @@ export type AppLanguage =
   | "bn"
   | "ta"
   | "te"
-  | "kn"
-  | "ml"
-  | "pa"
-  | "ur"
-  | "or"
-  | "as"
-  | "ne";
+  | "kn";
 
 export type LanguageOption = {
   code: AppLanguage;
@@ -92,54 +86,6 @@ export const LANGUAGES: LanguageOption[] = [
     nativeLabel: "ಕನ್ನಡ",
     speechLang: "kn-IN",
     htmlLang: "kn",
-    rtl: false,
-  },
-  {
-    code: "ml",
-    englishName: "Malayalam",
-    nativeLabel: "മലയാളം",
-    speechLang: "ml-IN",
-    htmlLang: "ml",
-    rtl: false,
-  },
-  {
-    code: "pa",
-    englishName: "Punjabi",
-    nativeLabel: "ਪੰਜਾਬੀ",
-    speechLang: "pa-IN",
-    htmlLang: "pa",
-    rtl: false,
-  },
-  {
-    code: "ur",
-    englishName: "Urdu",
-    nativeLabel: "اردو",
-    speechLang: "ur-IN",
-    htmlLang: "ur",
-    rtl: true,
-  },
-  {
-    code: "or",
-    englishName: "Odia",
-    nativeLabel: "ଓଡ଼ିଆ",
-    speechLang: "or-IN",
-    htmlLang: "or",
-    rtl: false,
-  },
-  {
-    code: "as",
-    englishName: "Assamese",
-    nativeLabel: "অসমীয়া",
-    speechLang: "as-IN",
-    htmlLang: "as",
-    rtl: false,
-  },
-  {
-    code: "ne",
-    englishName: "Nepali",
-    nativeLabel: "नेपाली",
-    speechLang: "ne-NP",
-    htmlLang: "ne",
     rtl: false,
   },
 ];

@@ -355,7 +355,7 @@ export function VoiceAssistant({
         );
       } else if (result.error === "unavailable") {
         setMicHint(
-          "Gemini could not read the audio. Check the internet, then tap the gold button again.",
+          "Speak now is not available on this phone. Check the internet, then tap again.",
         );
       } else if (result.error === "no-speech") {
         setMicHint("I did not catch that. Tap the mic and speak again.");
@@ -431,10 +431,8 @@ export function VoiceAssistant({
       />
 
       <MicListenLink
-        listening={phase === "listening" || micBusy}
-        label={
-          phase === "listening" || micBusy ? strings.stop : strings.tapToSpeak
-        }
+        language={prefs.language}
+        label={strings.tapToSpeak}
         onPress={toggleMic}
       />
 

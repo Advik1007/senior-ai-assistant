@@ -8,12 +8,6 @@ import bn from "./bn";
 import ta from "./ta";
 import te from "./te";
 import kn from "./kn";
-import ml from "./ml";
-import pa from "./pa";
-import ur from "./ur";
-import or from "./or";
-import as from "./as";
-import ne from "./ne";
 
 export const STATIC_CATALOGS: Record<AppLanguage, TranslationCatalog> = {
   en,
@@ -24,10 +18,4 @@ export const STATIC_CATALOGS: Record<AppLanguage, TranslationCatalog> = {
   ta,
   te,
   kn,
-  ml,
-  pa,
-  ur,
-  or,
-  as,
-  ne,
 };

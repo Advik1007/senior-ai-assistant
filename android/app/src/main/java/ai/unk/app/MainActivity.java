@@ -1,11 +1,12 @@
 package ai.unk.app;
 
 import android.Manifest;
+import android.app.Activity;
+import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.media.MediaRecorder;
 import android.os.Build;
 import android.os.Bundle;
-import android.util.Base64;
+import android.speech.RecognizerIntent;
 import android.view.View;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
@@ -15,27 +16,48 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.content.ContextCompat;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.WebViewListener;
-import java.io.File;
-import java.io.FileInputStream;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.ArrayList;
+import org.json.JSONObject;
 
 /**
- * Capacitor WebView shell. Records speech on the gold-button tap so Gemini
- * can turn audio into text (Android SpeechRecognizer is not used).
+ * Capacitor WebView shell. The in-page gold button opens Android's Speak now popup.
  */
 public class MainActivity extends BridgeActivity {
   private boolean webViewTuned = false;
   private boolean micBridgeAttached = false;
-  private MediaRecorder speechRecorder;
-  private File speechFile;
+  private String pendingSpeakNowLang = "en-IN";
 
   private final ActivityResultLauncher<String> micPermissionLauncher =
     registerForActivityResult(
       new ActivityResultContracts.RequestPermission(),
-      granted -> notifyMicPermission(Boolean.TRUE.equals(granted))
+      granted -> {
+        notifyMicPermission(Boolean.TRUE.equals(granted));
+        if (Boolean.TRUE.equals(granted)) {
+          launchSpeakNow(pendingSpeakNowLang);
+        } else {
+          notifySpeakNow(null, "denied");
+        }
+      }
+    );
+
+  private final ActivityResultLauncher<Intent> speakNowLauncher =
+    registerForActivityResult(
+      new ActivityResultContracts.StartActivityForResult(),
+      result -> {
+        if (result.getResultCode() != Activity.RESULT_OK || result.getData() == null) {
+          notifySpeakNow(null, "canceled");
+          return;
+        }
+        ArrayList<String> matches = result.getData().getStringArrayListExtra(
+          RecognizerIntent.EXTRA_RESULTS
+        );
+        String text = matches != null && !matches.isEmpty() ? matches.get(0) : "";
+        if (text == null || text.trim().isEmpty()) {
+          notifySpeakNow(null, "no-speech");
+        } else {
+          notifySpeakNow(text.trim(), null);
+        }
+      }
     );
 
   @Override
@@ -81,15 +103,53 @@ public class MainActivity extends BridgeActivity {
       PackageManager.PERMISSION_GRANTED;
   }
 
-  private void requestRecordAudioPermission() {
-    if (hasRecordAudioPermission()) {
-      notifyMicPermission(true);
-      return;
+  private void launchSpeakNow(String language) {
+    Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+    intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+    intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak now");
+    intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5);
+    if (language != null && !language.isEmpty()) {
+      intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, language);
+      intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, language);
     }
-    micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO);
+    try {
+      speakNowLauncher.launch(intent);
+    } catch (Exception e) {
+      notifySpeakNow(null, "unavailable");
+    }
   }
 
   private void notifyMicPermission(boolean granted) {
+    dispatchRaw(
+      "window.dispatchEvent(new CustomEvent('unk-mic-permission',{detail:{granted:" +
+      (granted ? "true" : "false") +
+      "}}));"
+    );
+  }
+
+  private void notifySpeakNow(String text, String error) {
+    try {
+      JSONObject detail = new JSONObject();
+      if (text != null) {
+        detail.put("ok", true);
+        detail.put("text", text);
+      } else {
+        detail.put("ok", false);
+        detail.put("error", error == null ? "canceled" : error);
+      }
+      dispatchRaw(
+        "window.dispatchEvent(new CustomEvent('unk-speak-now',{detail:" +
+        detail +
+        "}));"
+      );
+    } catch (Exception e) {
+      dispatchRaw(
+        "window.dispatchEvent(new CustomEvent('unk-speak-now',{detail:{ok:false,error:\"failed\"}}));"
+      );
+    }
+  }
+
+  private void dispatchRaw(String js) {
     if (bridge == null) {
       return;
     }
@@ -97,62 +157,7 @@ public class MainActivity extends BridgeActivity {
     if (webView == null) {
       return;
     }
-    String js =
-      "window.dispatchEvent(new CustomEvent('unk-mic-permission',{detail:{granted:" +
-      (granted ? "true" : "false") +
-      "}}));";
     webView.post(() -> webView.evaluateJavascript(js, null));
-  }
-
-  private boolean startMicRecorder() throws Exception {
-    stopMicRecorder();
-    speechFile = new File(getCacheDir(), "unk-speech.m4a");
-    if (speechFile.exists() && !speechFile.delete()) {
-      speechFile = new File(getCacheDir(), "unk-speech-" + System.currentTimeMillis() + ".m4a");
-    }
-    MediaRecorder recorder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-      ? new MediaRecorder(this)
-      : new MediaRecorder();
-    recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-    recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-    recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
-    recorder.setAudioSamplingRate(16000);
-    recorder.setAudioEncodingBitRate(64000);
-    recorder.setOutputFile(speechFile.getAbsolutePath());
-    recorder.prepare();
-    recorder.start();
-    speechRecorder = recorder;
-    return true;
-  }
-
-  private String stopMicRecorder() {
-    MediaRecorder recorder = speechRecorder;
-    speechRecorder = null;
-    if (recorder != null) {
-      try {
-        recorder.stop();
-      } catch (RuntimeException ignored) {}
-      try {
-        recorder.release();
-      } catch (RuntimeException ignored) {}
-    }
-    if (speechFile == null || !speechFile.exists() || speechFile.length() < 200) {
-      return "";
-    }
-    byte[] bytes = new byte[(int) speechFile.length()];
-    try (FileInputStream in = new FileInputStream(speechFile)) {
-      int read = 0;
-      while (read < bytes.length) {
-        int n = in.read(bytes, read, bytes.length - read);
-        if (n < 0) {
-          break;
-        }
-        read += n;
-      }
-    } catch (Exception e) {
-      return "";
-    }
-    return Base64.encodeToString(bytes, Base64.NO_WRAP);
   }
 
   private void lockZoomAndScale(WebView webView) {
@@ -218,48 +223,25 @@ public class MainActivity extends BridgeActivity {
 
     @JavascriptInterface
     public void requestMicPermission() {
-      runOnUiThread(MainActivity.this::requestRecordAudioPermission);
-    }
-
-    @JavascriptInterface
-    public boolean startRecording() {
-      if (!hasRecordAudioPermission()) {
-        return false;
-      }
-      AtomicBoolean ok = new AtomicBoolean(false);
-      CountDownLatch latch = new CountDownLatch(1);
       runOnUiThread(() -> {
-        try {
-          ok.set(startMicRecorder());
-        } catch (Exception e) {
-          ok.set(false);
+        if (hasRecordAudioPermission()) {
+          notifyMicPermission(true);
+          return;
         }
-        latch.countDown();
+        micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO);
       });
-      try {
-        latch.await(2, TimeUnit.SECONDS);
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        return false;
-      }
-      return ok.get();
     }
 
     @JavascriptInterface
-    public String stopRecording() {
-      AtomicReference<String> out = new AtomicReference<>("");
-      CountDownLatch latch = new CountDownLatch(1);
+    public void startSpeakNow(String language) {
       runOnUiThread(() -> {
-        out.set(stopMicRecorder());
-        latch.countDown();
+        pendingSpeakNowLang = language == null || language.isEmpty() ? "en-IN" : language;
+        if (!hasRecordAudioPermission()) {
+          micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO);
+          return;
+        }
+        launchSpeakNow(pendingSpeakNowLang);
       });
-      try {
-        latch.await(3, TimeUnit.SECONDS);
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        return "";
-      }
-      return out.get();
     }
   }
 }

@@ -71,7 +71,7 @@ const hiOverrides: Partial<TranslationCatalog> = {
     "नमस्ते, मैं UNK हूँ। मुझसे आसानी से बात करें — मैं सीखता हूँ, बातचीत करता हूँ, लक्षण जाँच सकता हूँ और पास के डॉक्टर ढूँढ सकता हूँ।",
   "talk.listening": "सुन रहा हूँ… अब बोलें",
   "talk.speaking": "UNK बोल रहा है",
-  "talk.tapToSpeak": "माइक्रोफ़ोन पर टैप करें, फिर बोलें",
+  "talk.tapToSpeak": "यहाँ टैप करें, फिर बोलें",
   "talk.stop": "रोकें",
   "talk.typeHere": "यहाँ लिखें",
   "talk.send": "भेजें",

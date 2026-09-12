@@ -106,7 +106,7 @@ const en: TranslationCatalog = {
     "Hey! I'm UNK. Talk to me about anything — your day, reminders, medicine, shopping, or directions.",
   "talk.listening": "Listening… speak now",
   "talk.speaking": "UNK is speaking",
-  "talk.tapToSpeak": "Tap the microphone, then speak",
+  "talk.tapToSpeak": "Tap here, then speak",
   "talk.stop": "Stop",
   "talk.typeHere": "Type here",
   "talk.send": "Send",
