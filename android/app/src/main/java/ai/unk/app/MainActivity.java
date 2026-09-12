@@ -1,18 +1,32 @@
 package ai.unk.app;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.core.content.ContextCompat;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.WebViewListener;
 
 /**
- * Capacitor WebView shell.
+ * Capacitor WebView shell. Asks Android for RECORD_AUDIO at runtime
+ * (manifest-only is not enough on a physical phone).
  */
 public class MainActivity extends BridgeActivity {
   private boolean webViewTuned = false;
+  private boolean micBridgeAttached = false;
+
+  private final ActivityResultLauncher<String> micPermissionLauncher =
+    registerForActivityResult(
+      new ActivityResultContracts.RequestPermission(),
+      granted -> notifyMicPermission(Boolean.TRUE.equals(granted))
+    );
 
   @Override
   public void onCreate(Bundle savedInstanceState) {
@@ -24,6 +38,7 @@ public class MainActivity extends BridgeActivity {
     }
 
     tuneWebView(bridge.getWebView());
+    attachMicBridge(bridge.getWebView());
     if (bridge.getWebView() != null) {
       bridge.getWebView().clearCache(true);
     }
@@ -34,12 +49,49 @@ public class MainActivity extends BridgeActivity {
         public void onPageLoaded(WebView webView) {
           lockZoomAndScale(webView);
           tuneWebView(webView);
+          attachMicBridge(webView);
         }
 
         @Override
         public void onReceivedError(WebView webView) {}
       }
     );
+  }
+
+  private void attachMicBridge(WebView webView) {
+    if (webView == null || micBridgeAttached) {
+      return;
+    }
+    webView.addJavascriptInterface(new UnkMicBridge(), "UnkMic");
+    micBridgeAttached = true;
+  }
+
+  private boolean hasRecordAudioPermission() {
+    return ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
+      PackageManager.PERMISSION_GRANTED;
+  }
+
+  private void requestRecordAudioPermission() {
+    if (hasRecordAudioPermission()) {
+      notifyMicPermission(true);
+      return;
+    }
+    micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO);
+  }
+
+  private void notifyMicPermission(boolean granted) {
+    if (bridge == null) {
+      return;
+    }
+    WebView webView = bridge.getWebView();
+    if (webView == null) {
+      return;
+    }
+    String js =
+      "window.dispatchEvent(new CustomEvent('unk-mic-permission',{detail:{granted:" +
+      (granted ? "true" : "false") +
+      "}}));";
+    webView.post(() -> webView.evaluateJavascript(js, null));
   }
 
   private void lockZoomAndScale(WebView webView) {
@@ -95,5 +147,17 @@ public class MainActivity extends BridgeActivity {
     settings.setAllowContentAccess(false);
     settings.setAllowFileAccessFromFileURLs(false);
     settings.setAllowUniversalAccessFromFileURLs(false);
+  }
+
+  private class UnkMicBridge {
+    @JavascriptInterface
+    public boolean hasMicPermission() {
+      return hasRecordAudioPermission();
+    }
+
+    @JavascriptInterface
+    public void requestMicPermission() {
+      runOnUiThread(MainActivity.this::requestRecordAudioPermission);
+    }
   }
 }

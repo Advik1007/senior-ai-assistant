@@ -18,6 +18,7 @@ import {
   cancelListen,
   speakText,
   stopSpeaking,
+  warmUpNativeMicPermission,
 } from "@/lib/speech";
 import { doctorsNearMeUrl, directionsUrl } from "@/lib/maps";
 import { findContactByName, findContactByRelationship } from "@/lib/storage/contacts";
@@ -390,6 +391,10 @@ export function VoiceAssistant({
   useEffect(() => {
     startListeningRef.current = startListening;
   }, [startListening]);
+
+  useEffect(() => {
+    void warmUpNativeMicPermission();
+  }, []);
 
   useEffect(() => {
     if (startedRef.current) return;

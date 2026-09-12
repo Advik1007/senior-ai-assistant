@@ -183,22 +183,78 @@ function recorderMimeType(): string {
   return types.find((type) => MediaRecorder.isTypeSupported(type)) || "";
 }
 
+type UnkMicBridge = {
+  hasMicPermission?: () => boolean;
+  requestMicPermission?: () => void;
+};
+
+function nativeMicBridge(): UnkMicBridge | null {
+  if (typeof window === "undefined") return null;
+  const bridge = (window as Window & { UnkMic?: UnkMicBridge }).UnkMic;
+  return bridge ?? null;
+}
+
+/** Android runtime RECORD_AUDIO dialog from MainActivity (not the website). */
+function requestNativeRecordAudio(): Promise<MicPermission> {
+  const bridge = nativeMicBridge();
+  if (!bridge?.requestMicPermission) return Promise.resolve("unavailable");
+
+  try {
+    if (bridge.hasMicPermission?.()) return Promise.resolve("granted");
+  } catch {
+    // Fall through and show the system prompt.
+  }
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value: MicPermission) => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener("unk-mic-permission", onEvent);
+      window.clearTimeout(timer);
+      resolve(value);
+    };
+    const onEvent = (event: Event) => {
+      const granted = Boolean(
+        (event as CustomEvent<{ granted?: boolean }>).detail?.granted,
+      );
+      finish(granted ? "granted" : "denied");
+    };
+    const timer = window.setTimeout(() => {
+      try {
+        finish(bridge.hasMicPermission?.() ? "granted" : "denied");
+      } catch {
+        finish("denied");
+      }
+    }, 25000);
+    window.addEventListener("unk-mic-permission", onEvent);
+    try {
+      bridge.requestMicPermission?.();
+    } catch {
+      finish("unavailable");
+    }
+  });
+}
+
 /** Ask for mic access from a user tap. Native app uses Capgo; browsers use getUserMedia. */
 export async function ensureMicPermission(): Promise<MicPermission> {
   if (typeof window === "undefined") return "unavailable";
 
   if (isNativeApp()) {
+    const native = await requestNativeRecordAudio();
+    if (native === "denied") return "denied";
+
     const SpeechRecognition = await loadNativeSpeech();
-    if (!SpeechRecognition) return "unavailable";
+    if (!SpeechRecognition) return native === "granted" ? "granted" : "unavailable";
     try {
       let status = await SpeechRecognition.checkPermissions();
       if (status.speechRecognition !== "granted") {
         status = await SpeechRecognition.requestPermissions();
       }
       if (status.speechRecognition === "granted") return "granted";
-      return "denied";
+      return native === "granted" ? "granted" : "denied";
     } catch {
-      return "unavailable";
+      return native === "granted" ? "granted" : "unavailable";
     }
   }
 
@@ -213,6 +269,12 @@ export async function ensureMicPermission(): Promise<MicPermission> {
   }
 
   return createBrowserSpeechRecognition() ? "granted" : "unavailable";
+}
+
+/** Show the Android Allow-microphone dialog as soon as Talk/Help opens. */
+export async function warmUpNativeMicPermission(): Promise<void> {
+  if (!isNativeApp()) return;
+  await ensureMicPermission();
 }
 
 async function openWebsiteMic(): Promise<MediaStream | null> {
