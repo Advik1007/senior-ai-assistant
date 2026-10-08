@@ -15,6 +15,7 @@ const nextConfig: NextConfig = {
   },
   // Preview and phone browsers hit 127.0.0.1 while Next treats another host as origin.
   allowedDevOrigins: ["127.0.0.1", "localhost"],
+  agentRules: false,
   // Keep Capacitor native plugins in the client bundle for the Android WebView.
   transpilePackages: [
     "@capacitor/core",

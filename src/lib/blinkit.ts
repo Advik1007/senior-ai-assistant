@@ -71,7 +71,7 @@ export type BlinkitProduct = {
   eta: string | null;
 };
 
-function currentPosition(): Promise<{ lat: number; lon: number } | null> {
+export function currentPosition(): Promise<{ lat: number; lon: number } | null> {
   return new Promise((resolve) => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       resolve(null);

@@ -127,7 +127,8 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
     pathname === "/install" ||
     pathname.startsWith("/install/") ||
     pathname === "/inbox" ||
-    pathname.startsWith("/inbox/")
+    pathname.startsWith("/inbox/") ||
+    pathname === "/grocery"
   ) {
     return <>{children}</>;
   }

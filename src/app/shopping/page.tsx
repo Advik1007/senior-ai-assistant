@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, ShoppingBag } from "lucide-react";
+import { ExternalLink, ShoppingBag, ShoppingCart } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { BigButton } from "@/components/BigButton";
 import { useApp } from "@/components/providers/app-provider";
@@ -32,6 +32,10 @@ export default function ShoppingPage() {
       <p className="rounded-2xl bg-[#FFF4CC] p-4 text-lg font-semibold">
         {strings.shoppingSafety}
       </p>
+
+      <BigButton href="/grocery" tone="gold" icon={<ShoppingCart className="size-8" />}>
+        Compare grocery prices
+      </BigButton>
 
       <BigButton href="/talk" tone="primary" icon={<ShoppingBag className="size-8" />}>
         {strings.shoppingAskUnk}
