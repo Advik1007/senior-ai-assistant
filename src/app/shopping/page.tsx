@@ -5,10 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { BigButton } from "@/components/BigButton";
 import { useApp } from "@/components/providers/app-provider";
 
-const SERVICES = [
-  { name: "Blinkit", url: "https://blinkit.com" },
-  { name: "Amazon", url: "https://www.amazon.in" },
-];
+const SERVICES = [{ name: "Amazon", url: "https://www.amazon.in" }];
 
 export default function ShoppingPage() {
   const { strings } = useApp();
