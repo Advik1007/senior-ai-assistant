@@ -15,6 +15,7 @@ import android.speech.tts.UtteranceProgressListener;
 import android.speech.tts.Voice;
 import android.view.View;
 import android.webkit.JavascriptInterface;
+import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import androidx.activity.result.ActivityResultLauncher;
@@ -35,6 +36,7 @@ import org.json.JSONObject;
 public class MainActivity extends BridgeActivity {
   private boolean webViewTuned = false;
   private boolean micBridgeAttached = false;
+  private boolean locationPromptOpen = false;
   private String pendingSpeakNowLang = "en-IN";
 
   private TextToSpeech tts;
@@ -43,6 +45,18 @@ public class MainActivity extends BridgeActivity {
   private String pendingTtsText;
   private String pendingTtsLang = "en-IN";
   private float pendingTtsRate = 0.9f;
+
+  private final ActivityResultLauncher<String[]> locationPermissionLauncher =
+    registerForActivityResult(
+      new ActivityResultContracts.RequestMultiplePermissions(),
+      result -> {
+        locationPromptOpen = false;
+        boolean granted =
+          Boolean.TRUE.equals(result.get(Manifest.permission.ACCESS_FINE_LOCATION)) ||
+          Boolean.TRUE.equals(result.get(Manifest.permission.ACCESS_COARSE_LOCATION));
+        notifyLocationPermission(granted);
+      }
+    );
 
   private final ActivityResultLauncher<String> micPermissionLauncher =
     registerForActivityResult(
@@ -89,8 +103,10 @@ public class MainActivity extends BridgeActivity {
     initTts(true);
     tuneWebView(bridge.getWebView());
     attachMicBridge(bridge.getWebView());
+    installGeoChrome(bridge.getWebView());
     if (bridge.getWebView() != null) {
       bridge.getWebView().clearCache(true);
+      bridge.getWebView().postDelayed(this::askLocationOnce, 700);
     }
 
     bridge.addWebViewListener(
@@ -100,6 +116,8 @@ public class MainActivity extends BridgeActivity {
           lockZoomAndScale(webView);
           tuneWebView(webView);
           attachMicBridge(webView);
+          installGeoChrome(webView);
+          askLocationOnce();
         }
 
         @Override
@@ -333,6 +351,51 @@ public class MainActivity extends BridgeActivity {
     dispatchRaw("window.dispatchEvent(new CustomEvent('unk-tts-end'));");
   }
 
+  private boolean hasLocationPermission() {
+    boolean fine =
+      ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
+      PackageManager.PERMISSION_GRANTED;
+    boolean coarse =
+      ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) ==
+      PackageManager.PERMISSION_GRANTED;
+    return fine || coarse;
+  }
+
+  private void askLocationOnce() {
+    if (hasLocationPermission() || locationPromptOpen) {
+      return;
+    }
+    locationPromptOpen = true;
+    locationPermissionLauncher.launch(
+      new String[] {
+        Manifest.permission.ACCESS_COARSE_LOCATION,
+        Manifest.permission.ACCESS_FINE_LOCATION
+      }
+    );
+  }
+
+  private void notifyLocationPermission(boolean granted) {
+    dispatchRaw(
+      "window.dispatchEvent(new CustomEvent('unk-location-permission',{detail:{granted:" +
+      (granted ? "true" : "false") +
+      "}}));"
+    );
+  }
+
+  private void installGeoChrome(WebView webView) {
+    if (webView == null) {
+      return;
+    }
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+      return;
+    }
+    WebChromeClient existing = webView.getWebChromeClient();
+    if (existing instanceof GeoChromeClient) {
+      return;
+    }
+    webView.setWebChromeClient(new GeoChromeClient(existing, this::hasLocationPermission));
+  }
+
   private void attachMicBridge(WebView webView) {
     if (webView == null || micBridgeAttached) {
       return;
@@ -434,6 +497,8 @@ public class MainActivity extends BridgeActivity {
     settings.setDomStorageEnabled(true);
     settings.setMediaPlaybackRequiresUserGesture(false);
     settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
+    settings.setGeolocationEnabled(true);
+    settings.setGeolocationDatabasePath(getFilesDir().getPath());
 
     if (webViewTuned) {
       return;
@@ -451,7 +516,6 @@ public class MainActivity extends BridgeActivity {
     webView.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
 
     settings.setDatabaseEnabled(false);
-    settings.setGeolocationEnabled(false);
     settings.setSaveFormData(false);
     settings.setAllowFileAccess(true);
     settings.setAllowContentAccess(false);
@@ -505,6 +569,16 @@ public class MainActivity extends BridgeActivity {
     @JavascriptInterface
     public void stopSpeak() {
       runOnUiThread(MainActivity.this::stopTts);
+    }
+
+    @JavascriptInterface
+    public boolean hasLocationPermission() {
+      return MainActivity.this.hasLocationPermission();
+    }
+
+    @JavascriptInterface
+    public void requestLocationPermission() {
+      runOnUiThread(MainActivity.this::askLocationOnce);
     }
   }
 }

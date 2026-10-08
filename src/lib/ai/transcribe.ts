@@ -12,14 +12,28 @@ function languageHint(lang: string): string {
   return trimmed;
 }
 
+function deepgramKey(): string | null {
+  return process.env.DEEPGRAM_API_KEY?.trim() || null;
+}
+
+/** nova-3 accepts en-IN for English and the base code for Indian languages. */
+function deepgramLanguage(lang: string): string {
+  const code = languageHint(lang).toLowerCase();
+  if (code.startsWith("en")) return "en-IN";
+  return code.slice(0, 2);
+}
+
 /**
- * Turn a spoken audio clip into text using the same AI key as Talk.
+ * Turn a spoken audio clip into text. Deepgram when configured, otherwise the Talk key.
  */
 export async function transcribeAudio(input: {
   bytes: Buffer;
   mimeType: string;
   lang: string;
 }): Promise<string | null> {
+  const dgKey = deepgramKey();
+  if (dgKey) return transcribeWithDeepgram(dgKey, input);
+
   const apiKey = resolveAiApiKey();
   if (!apiKey) return null;
 
@@ -83,6 +97,36 @@ async function transcribeWithOpenAI(
   return data.text?.trim() || null;
 }
 
+async function transcribeWithDeepgram(
+  apiKey: string,
+  input: { bytes: Buffer; mimeType: string; lang: string },
+): Promise<string | null> {
+  const params = new URLSearchParams({
+    model: process.env.DEEPGRAM_MODEL?.trim() || "nova-3",
+    language: deepgramLanguage(input.lang),
+    smart_format: "true",
+    punctuate: "true",
+  });
+  const res = await fetch(`https://api.deepgram.com/v1/listen?${params}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Token ${apiKey}`,
+      "Content-Type": input.mimeType.split(";")[0] || "audio/webm",
+    },
+    body: new Uint8Array(input.bytes),
+  });
+  if (!res.ok) {
+    console.error("[deepgram]", res.status);
+    return null;
+  }
+  const data = (await res.json()) as {
+    results?: {
+      channels?: Array<{ alternatives?: Array<{ transcript?: string }> }>;
+    };
+  };
+  return data.results?.channels?.[0]?.alternatives?.[0]?.transcript?.trim() ?? "";
+}
+
 export function canTranscribeAudio(): boolean {
-  return Boolean(resolveAiApiKey());
+  return Boolean(deepgramKey() || resolveAiApiKey());
 }

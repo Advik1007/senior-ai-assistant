@@ -15,8 +15,10 @@
 | `SMTP_PASS` | 16-character [App Password](https://myaccount.google.com/apppasswords) |
 | `TURSO_DATABASE_URL` | `libsql://….turso.io` (from Turso) |
 | `TURSO_AUTH_TOKEN` | database token from Turso |
-| `GEMINI_API_KEY` | Google AI Studio key for Talk + Doctor AI |
+| `GEMINI_API_KEY` | Talk replies key (server only) |
 | `AI_MODEL` | e.g. `gemini-2.0-flash` (optional) |
+| `DEEPGRAM_API_KEY` | Speech-to-text for `/api/transcribe` (server only) |
+| `ELEVENLABS_AGENT_ID` | ElevenLabs agent ID (optional) |
 
 Mail is sent with Gmail SMTP from `hello.unkai@gmail.com`. No extra email provider.
 

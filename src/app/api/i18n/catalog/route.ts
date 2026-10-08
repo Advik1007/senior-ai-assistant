@@ -3,10 +3,7 @@ import { CATALOGS } from "@/lib/i18n/catalogs";
 import { I18N_CATALOG_VERSION } from "@/lib/i18n/catalog-version";
 import { isAppLanguage } from "@/lib/languages";
 
-/**
- * Static bundled UI catalog only.
- * No Gemini / Google Translate / LibreTranslate — translations ship in the app.
- */
+/** Static bundled UI catalog only. Translations ship in the app. */
 export async function GET(request: Request) {
   const langParam = new URL(request.url).searchParams.get("lang")?.trim() || "en";
   if (!isAppLanguage(langParam)) {

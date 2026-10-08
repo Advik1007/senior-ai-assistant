@@ -11,9 +11,7 @@ export type ChatMessage = {
   content: string;
 };
 
-/**
- * JSON chat completion via Gemini (native) or OpenAI, depending on the key.
- */
+/** JSON chat completion using the server Talk key. */
 export async function completeJsonChat(input: {
   system: string;
   messages: ChatMessage[];

@@ -9,11 +9,7 @@ export function resolveAiApiKey(): string | null {
 }
 
 export function isGeminiKey(key: string): boolean {
-  return (
-    key.startsWith("AQ.") ||
-    key.startsWith("AIza") ||
-    Boolean(process.env.GEMINI_API_KEY?.trim())
-  );
+  return key.startsWith("AQ.") || key.startsWith("AIza");
 }
 
 export function geminiModel(): string {

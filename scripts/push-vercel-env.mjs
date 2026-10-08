@@ -20,6 +20,8 @@ const OPTIONAL = [
   "SMTP_FROM",
   "GEMINI_API_KEY",
   "AI_MODEL",
+  "DEEPGRAM_API_KEY",
+  "ELEVENLABS_AGENT_ID",
 ];
 
 function loadEnvLocal() {
@@ -68,7 +70,10 @@ for (const key of toPush) {
   let value = values[key];
   if (key === "SMTP_PASS") value = value.replace(/\s+/g, "");
   const sensitive =
-    key === "SMTP_PASS" || key === "AUTH_SECRET" || key === "GEMINI_API_KEY"
+    key === "SMTP_PASS" ||
+    key === "AUTH_SECRET" ||
+    key === "GEMINI_API_KEY" ||
+    key === "DEEPGRAM_API_KEY"
       ? ["--sensitive"]
       : ["--no-sensitive"];
   execSync(

@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 
 /**
- * Future home for the server-side AI assistant.
- * API keys must stay here — never in the browser.
- * This first version uses on-device intent matching instead.
+ * Talk keys stay on the server — never in the browser.
  */
 export async function POST() {
   const key = process.env.AI_API_KEY;

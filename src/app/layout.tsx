@@ -6,6 +6,7 @@ import { NativeBackHandler } from "@/components/NativeBackHandler";
 import { OnboardingGate } from "@/components/OnboardingGate";
 import { ReminderSync } from "@/components/ReminderSync";
 import { SplashReady } from "@/components/SplashReady";
+import { LocationWarmUp } from "@/components/LocationWarmUp";
 import { ThemeSync } from "@/components/ThemeSync";
 import "./globals.css";
 
@@ -44,6 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-dvh bg-[#E8EEF5] font-sans text-[#0B1F3A]">
         <AppProvider>
           <SplashReady />
+          <LocationWarmUp />
           <NativeBackHandler />
           <ReminderSync />
           <DeepLinkHandler />

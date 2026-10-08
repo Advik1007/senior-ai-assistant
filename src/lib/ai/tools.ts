@@ -1,6 +1,6 @@
 /**
- * Tool contracts for UNK Command AI.
- * The assistant may only request one of these tools.
+ * Tool contracts for UNK.
+ * Only one of these tools may be requested at a time.
  */
 
 export type AssistantToolName =

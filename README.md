@@ -8,8 +8,8 @@ without the user confirming twice.
 ## Stack (and why)
 
 - **Next.js (App Router) + TypeScript** — one project for the phone-sized
-  website and a secure backend. Cursor works well with this. Later the same
-  UI can be wrapped with Capacitor for an app store build.
+  website and a secure backend. Later the same UI can be wrapped with
+  Capacitor for an app store build.
 - **Tailwind CSS + shadcn/ui** — fast layout, with large custom buttons on
   top of simple UI primitives.
 - **On-device storage (for this first version)** — family contacts and

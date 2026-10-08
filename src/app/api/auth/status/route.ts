@@ -88,7 +88,7 @@ export async function GET(request: Request) {
       missing.length > 0 || !dbReady
         ? "Update TURSO_DATABASE_URL + TURSO_AUTH_TOKEN in Vercel Production, then Redeploy (env changes do not apply until redeploy)."
         : !hasAiKey
-          ? "Optional: add GEMINI_API_KEY (+ AI_MODEL=gemini-3.6-flash) for smarter Talk replies."
+          ? "Optional: add GEMINI_API_KEY for Talk replies."
           : undefined,
   });
 }

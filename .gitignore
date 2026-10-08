@@ -58,3 +58,9 @@ releases/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Editor / local agent files
+.cursor/
+.idea/
+AGENTS.md
+CLAUDE.md

@@ -187,6 +187,8 @@ function recorderMimeType(): string {
 type UnkMicBridge = {
   hasMicPermission?: () => boolean;
   requestMicPermission?: () => void;
+  hasLocationPermission?: () => boolean;
+  requestLocationPermission?: () => void;
   startSpeakNow?: (language: string) => void;
   speak?: (text: string, language: string, rate: string) => void;
   stopSpeak?: () => void;
@@ -307,40 +309,6 @@ async function transcribeAudioBlob(
   }
 }
 
-/** Record on the phone, then Gemini turns the audio into words. */
-async function listenWithNativeGemini(
-  language: string,
-  epoch: number,
-): Promise<ListenOnceResult | null> {
-  const bridge = nativeMicBridge();
-  if (!bridge?.startRecording || !bridge.stopRecording) return null;
-
-  let started = false;
-  try {
-    started = Boolean(bridge.startRecording());
-  } catch {
-    return null;
-  }
-  if (!started) return { ok: false, error: "denied" };
-
-  websiteAbort = () => stopNativeCapture();
-  await sleep(6500);
-
-  let b64 = "";
-  try {
-    b64 = bridge.stopRecording() || "";
-  } catch {
-    b64 = "";
-  }
-  websiteAbort = null;
-  if (epoch !== listenEpoch) return { ok: false, error: "canceled" };
-  if (!b64) return { ok: false, error: "no-speech" };
-
-  const binary = Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0));
-  const blob = new Blob([binary], { type: "audio/mp4" });
-  return transcribeAudioBlob(blob, language, epoch, "speech.m4a");
-}
-
 /** Android runtime RECORD_AUDIO dialog from MainActivity (not the website). */
 function requestNativeRecordAudio(): Promise<MicPermission> {
   const bridge = nativeMicBridge();
@@ -426,6 +394,23 @@ export async function ensureMicPermission(): Promise<MicPermission> {
 export async function warmUpNativeMicPermission(): Promise<void> {
   if (!isNativeApp()) return;
   await ensureMicPermission();
+}
+
+/** Show the Android Allow-location dialog when the app first opens. */
+export async function warmUpNativeLocationPermission(): Promise<void> {
+  if (!isNativeApp()) return;
+  const bridge = nativeMicBridge();
+  if (!bridge?.requestLocationPermission) return;
+  try {
+    if (bridge.hasLocationPermission?.()) return;
+  } catch {
+    // Ask anyway.
+  }
+  try {
+    bridge.requestLocationPermission();
+  } catch {
+    // ignore
+  }
 }
 
 async function openWebsiteMic(): Promise<MediaStream | null> {
