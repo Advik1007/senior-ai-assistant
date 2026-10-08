@@ -22,6 +22,7 @@ const OPTIONAL = [
   "AI_MODEL",
   "DEEPGRAM_API_KEY",
   "ELEVENLABS_AGENT_ID",
+  "QUICKCOMMERCE_API_KEY",
 ];
 
 function loadEnvLocal() {
@@ -73,7 +74,8 @@ for (const key of toPush) {
     key === "SMTP_PASS" ||
     key === "AUTH_SECRET" ||
     key === "GEMINI_API_KEY" ||
-    key === "DEEPGRAM_API_KEY"
+    key === "DEEPGRAM_API_KEY" ||
+    key === "QUICKCOMMERCE_API_KEY"
       ? ["--sensitive"]
       : ["--no-sensitive"];
   execSync(

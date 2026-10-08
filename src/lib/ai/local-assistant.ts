@@ -11,6 +11,7 @@ import {
   findContactByRelationship,
 } from "@/lib/storage/contacts";
 import { addRoutine } from "@/lib/storage/routines";
+import { blinkitReply, extractOrderItem } from "@/lib/blinkit";
 
 export type AssistantResult = {
   spokenText: string;
@@ -103,6 +104,14 @@ export function interpretUserSpeech(
     return {
       spokenText: say("ai.emergency"),
       toolCall: { name: "open_emergency", args: {} },
+    };
+  }
+
+  const orderItem = extractOrderItem(raw);
+  if (orderItem !== null) {
+    return {
+      spokenText: blinkitReply(lang, orderItem),
+      toolCall: { name: "order_blinkit", args: { item: orderItem } },
     };
   }
 

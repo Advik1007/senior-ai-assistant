@@ -21,6 +21,14 @@ import {
   warmUpNativeMicPermission,
 } from "@/lib/speech";
 import { doctorsNearMeUrl, directionsUrl } from "@/lib/maps";
+import {
+  blinkitFoundReply,
+  blinkitReply,
+  openBlinkit,
+  openExternal,
+  searchBlinkitNearby,
+  type BlinkitProduct,
+} from "@/lib/blinkit";
 import { findContactByName, findContactByRelationship } from "@/lib/storage/contacts";
 import { addRoutine } from "@/lib/storage/routines";
 import { useApp } from "@/components/providers/app-provider";
@@ -141,6 +149,10 @@ export function VoiceAssistant({
   const [voiceSupported, setVoiceSupported] = useState(true);
   const [micHint, setMicHint] = useState<string | null>(null);
   const [micBusy, setMicBusy] = useState(false);
+  const [blinkit, setBlinkit] = useState<{
+    item: string;
+    products: BlinkitProduct[];
+  } | null>(null);
 
   const pendingCallRef = useRef<Contact | null>(null);
   const offerFamilyRef = useRef(false);
@@ -183,6 +195,29 @@ export function VoiceAssistant({
       });
     },
     [addLog, prefs.language, prefs.voiceSpeed, stopListening],
+  );
+
+  const orderFromBlinkit = useCallback(
+    (item: string) => {
+      setBlinkit(null);
+      if (!item) {
+        speak(blinkitReply(prefs.language, ""), false);
+        window.setTimeout(() => openBlinkit(), 1600);
+        return;
+      }
+      setPhase("processing");
+      void (async () => {
+        const products = await searchBlinkitNearby(item);
+        if (products[0]) {
+          setBlinkit({ item, products });
+          speak(blinkitFoundReply(prefs.language, item, products[0]), false);
+          return;
+        }
+        speak(blinkitReply(prefs.language, item), false);
+        window.setTimeout(() => openBlinkit(item), 1600);
+      })();
+    },
+    [prefs.language, speak],
   );
 
   const confirmCall = useCallback(
@@ -252,6 +287,12 @@ export function VoiceAssistant({
         }
       }
 
+      if (interpreted.toolCall?.name === "order_blinkit") {
+        offerFamilyRef.current = false;
+        orderFromBlinkit(interpreted.toolCall.args.item);
+        return;
+      }
+
       if (interpreted.toolCall) {
         offerFamilyRef.current = false;
         const path = toolPath(interpreted.toolCall);
@@ -296,6 +337,12 @@ export function VoiceAssistant({
             }
             appendChatHistory({ role: "user", content: said });
             appendChatHistory({ role: "assistant", content: reply });
+            if (data.action?.type === "order_blinkit") {
+              orderFromBlinkit(
+                typeof data.action.item === "string" ? data.action.item : "",
+              );
+              return;
+            }
             speak(reply, true);
             if (data.action?.type === "open_doctor_nearby") {
               window.setTimeout(() => {
@@ -322,6 +369,7 @@ export function VoiceAssistant({
       confirmCall,
       contacts,
       mode,
+      orderFromBlinkit,
       prefs.language,
       profile.displayName,
       router,
@@ -466,6 +514,49 @@ export function VoiceAssistant({
           </ul>
         )}
       </div>
+
+      {blinkit ? (
+        <section className="flex flex-col gap-3" aria-label="Blinkit results">
+          {blinkit.products.map((p) => (
+            <button
+              key={p.id || p.link}
+              type="button"
+              onClick={() => openExternal(p.link)}
+              className="flex items-center gap-4 rounded-2xl border-2 border-[#F8CB46] bg-white p-3 text-left high-contrast:bg-black"
+            >
+              {p.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={p.image}
+                  alt=""
+                  className="size-20 shrink-0 rounded-xl object-contain"
+                />
+              ) : null}
+              <span className="flex flex-col">
+                <span className="text-lg font-bold">{p.name}</span>
+                <span className="text-base text-[#5A6B7D]">
+                  {[p.quantity, p.eta ? `${p.eta} delivery` : ""]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </span>
+                {p.price != null ? (
+                  <span className="text-xl font-extrabold text-[#0B4F8A]">
+                    ₹{p.price}
+                    {p.mrp != null && p.mrp > p.price ? (
+                      <span className="ml-2 text-base font-semibold text-[#5A6B7D] line-through">
+                        ₹{p.mrp}
+                      </span>
+                    ) : null}
+                  </span>
+                ) : null}
+              </span>
+            </button>
+          ))}
+          <BigButton tone="service" onClick={() => openBlinkit(blinkit.item)}>
+            See all on Blinkit
+          </BigButton>
+        </section>
+      ) : null}
 
       <div className="flex flex-col gap-3">
           <label className="text-lg font-bold" htmlFor="unk-type">

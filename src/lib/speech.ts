@@ -895,6 +895,68 @@ export function speakText(
   stopSpeaking();
   const locale = speechLocale(options.lang);
   const rate = Math.max(0.7, Math.min(options.rate || 0.9, 1.05));
+
+  if (locale.toLowerCase().startsWith("en") && !cloudVoiceDisabled) {
+    const token = ++cloudVoiceToken;
+    void speakWithCloudVoice(spoken, rate, token).then((played) => {
+      if (token !== cloudVoiceToken) return;
+      if (played) options.onend?.();
+      else speakOnDevice(spoken, locale, rate, options.onend);
+    });
+    return;
+  }
+
+  speakOnDevice(spoken, locale, rate, options.onend);
+}
+
+let cloudVoiceToken = 0;
+let cloudVoiceAudio: HTMLAudioElement | null = null;
+let cloudVoiceDisabled = false;
+
+/** Resolves true once the clip finished playing, false if the device voice should take over. */
+async function speakWithCloudVoice(
+  text: string,
+  rate: number,
+  token: number,
+): Promise<boolean> {
+  try {
+    const res = await fetch("/api/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (res.status === 503) cloudVoiceDisabled = true;
+    if (!res.ok || token !== cloudVoiceToken) return false;
+    const url = URL.createObjectURL(await res.blob());
+    if (token !== cloudVoiceToken) {
+      URL.revokeObjectURL(url);
+      return false;
+    }
+    const audio = new Audio(url);
+    audio.playbackRate = Math.max(0.85, Math.min(rate + 0.1, 1.1));
+    cloudVoiceAudio = audio;
+    return await new Promise<boolean>((resolve) => {
+      const done = (ok: boolean) => {
+        URL.revokeObjectURL(url);
+        if (cloudVoiceAudio === audio) cloudVoiceAudio = null;
+        resolve(ok);
+      };
+      audio.onended = () => done(true);
+      audio.onerror = () => done(false);
+      audio.play().catch(() => done(false));
+    });
+  } catch {
+    return false;
+  }
+}
+
+function speakOnDevice(
+  spoken: string,
+  locale: string,
+  rate: number,
+  onend?: () => void,
+): void {
+  const options = { onend };
   const bridge = nativeMicBridge();
 
   if (bridge?.speak) {
@@ -951,6 +1013,11 @@ export function speakText(
 
 export function stopSpeaking(): void {
   if (typeof window === "undefined") return;
+  cloudVoiceToken += 1;
+  if (cloudVoiceAudio) {
+    cloudVoiceAudio.pause();
+    cloudVoiceAudio = null;
+  }
   clearTtsWait();
   try {
     nativeMicBridge()?.stopSpeak?.();

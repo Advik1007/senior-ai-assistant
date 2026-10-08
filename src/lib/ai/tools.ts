@@ -8,6 +8,7 @@ export type AssistantToolName =
   | "open_medical"
   | "open_doctor_nearby"
   | "open_shopping"
+  | "order_blinkit"
   | "open_routine"
   | "open_help"
   | "open_emergency"
@@ -39,6 +40,7 @@ export type ToolCall =
   | { name: "open_medical"; args: OpenDoctorArgs }
   | { name: "open_doctor_nearby"; args: OpenDoctorArgs }
   | { name: "open_shopping"; args: Record<string, never> }
+  | { name: "order_blinkit"; args: { item: string } }
   | { name: "open_routine"; args: Record<string, never> }
   | { name: "open_help"; args: Record<string, never> }
   | { name: "open_emergency"; args: Record<string, never> }

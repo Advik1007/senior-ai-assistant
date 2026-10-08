@@ -17,7 +17,8 @@
 | `TURSO_AUTH_TOKEN` | database token from Turso |
 | `GEMINI_API_KEY` | Talk replies key (server only) |
 | `AI_MODEL` | e.g. `gemini-2.0-flash` (optional) |
-| `DEEPGRAM_API_KEY` | Speech-to-text for `/api/transcribe` (server only) |
+| `DEEPGRAM_API_KEY` | Speech-to-text (`/api/transcribe`) and English voice replies (`/api/tts`) |
+| `QUICKCOMMERCE_API_KEY` | Live Blinkit product search for "order milk" (server only) |
 | `ELEVENLABS_AGENT_ID` | ElevenLabs agent ID (optional) |
 
 Mail is sent with Gmail SMTP from `hello.unkai@gmail.com`. No extra email provider.

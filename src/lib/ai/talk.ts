@@ -9,11 +9,13 @@ import {
   parseReminderSpeech,
 } from "@/lib/routine/parse-reminder";
 import { toDateKey } from "@/lib/storage/routines";
+import { blinkitReply, extractOrderItem } from "@/lib/blinkit";
 
 export type TalkAction =
   | { type: "open_medical" }
   | { type: "open_doctor_nearby" }
   | { type: "open_shopping" }
+  | { type: "order_blinkit"; item: string }
   | { type: "open_routine"; date?: string }
   | { type: "open_emergency" }
   | { type: "open_help" }
@@ -99,6 +101,14 @@ function localTalk(input: TalkInput): TalkOutput {
     ])
   ) {
     return { reply: say("ai.emergency"), action: { type: "open_emergency" } };
+  }
+
+  const orderItem = extractOrderItem(input.message);
+  if (orderItem !== null) {
+    return {
+      reply: blinkitReply(input.lang, orderItem),
+      action: { type: "order_blinkit", item: orderItem },
+    };
   }
 
   if (
@@ -234,11 +244,12 @@ STYLE:
 SAFETY:
 - You are NOT a licensed doctor. For serious symptoms, urge seeing a clinician / emergency services (112/108/911) and you may set action "open_emergency" or "open_doctor_nearby" / "open_medical".
 - Never prescribe or change medicines.
-- Never place orders or handle payments; for shopping you may set action "open_shopping" and guide them.
+- Never place orders or handle payments. When the user wants to order or buy groceries/items, set action { "type": "order_blinkit", "item": "<item>" } so the app opens Blinkit search; they check out and pay themselves.
 - Do not help with crime, weapons, or self-harm methods. For crisis feelings, be supportive and suggest contacting emergency/family help.
 
 OPTIONAL APP ACTIONS (only when clearly useful):
 - "open_medical" | "open_doctor_nearby" | "open_shopping" | "open_routine" | "open_emergency" | "open_help"
+- { "type": "order_blinkit", "item": string } for ordering groceries/items.
 - For reminders like "remind me on the 25th to go to the doctor", set action to an object:
   { "type": "create_reminder", "title": string, "date": "YYYY-MM-DD" (optional), "time": "HH:mm" (optional), "days": "once"|"recurring", "kind": "reminder"|"appointment" }
   Resolve "the 25th" to the next upcoming calendar date (today's year/month). Prefer kind "appointment" for doctor visits.
@@ -276,6 +287,12 @@ function normalizeTalkAction(raw: unknown): TalkAction | undefined {
           : "reminder",
     };
   }
+  if (type === "order_blinkit") {
+    return {
+      type: "order_blinkit",
+      item: typeof obj.item === "string" ? obj.item.trim() : "",
+    };
+  }
   if (type === "open_routine") {
     return {
       type: "open_routine",
@@ -286,7 +303,10 @@ function normalizeTalkAction(raw: unknown): TalkAction | undefined {
   return simple ? ({ type: simple } as TalkAction) : undefined;
 }
 
-const ACTION_MAP: Record<string, Exclude<TalkAction["type"], "create_reminder">> = {
+const ACTION_MAP: Record<
+  string,
+  Exclude<TalkAction["type"], "create_reminder" | "order_blinkit">
+> = {
   open_medical: "open_medical",
   open_doctor_nearby: "open_doctor_nearby",
   open_shopping: "open_shopping",
@@ -296,6 +316,8 @@ const ACTION_MAP: Record<string, Exclude<TalkAction["type"], "create_reminder">>
 };
 
 export async function generateTalkReply(input: TalkInput): Promise<TalkOutput> {
+  if (extractOrderItem(input.message) !== null) return localTalk(input);
+
   // Prefer deterministic dated-reminder parsing before calling the model.
   const localReminder = parseReminderSpeech(
     input.message,

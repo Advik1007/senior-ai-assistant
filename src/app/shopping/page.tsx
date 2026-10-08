@@ -4,8 +4,12 @@ import { ExternalLink, ShoppingBag } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { BigButton } from "@/components/BigButton";
 import { useApp } from "@/components/providers/app-provider";
+import { BLINKIT_HOME } from "@/lib/blinkit";
 
-const SERVICES = [{ name: "Amazon", url: "https://www.amazon.in" }];
+const SERVICES = [
+  { name: "Blinkit", url: BLINKIT_HOME },
+  { name: "Amazon", url: "https://www.amazon.in" },
+];
 
 export default function ShoppingPage() {
   const { strings } = useApp();
