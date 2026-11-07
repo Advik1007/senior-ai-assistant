@@ -1,0 +1,101 @@
+/* Trust AI visual system — cool stone + deep teal. No purple AI clichés. */
+
+.trust-root {
+  --trust-bg-0: #d9e2ec;
+  --trust-bg-1: #eef3f7;
+  --trust-elevated: #f7fafc;
+  --trust-ink: #142033;
+  --trust-ink-muted: #5a6b7d;
+  --trust-accent: #0f6b5c;
+  --trust-accent-ink: #f4fffb;
+  --trust-accent-soft: color-mix(in srgb, #0f6b5c 35%, transparent);
+  --trust-user-wash: color-mix(in srgb, #0f6b5c 10%, #f7fafc);
+  --trust-line: color-mix(in srgb, #142033 12%, transparent);
+  --trust-danger: #9b2c2c;
+  --trust-radius: 0.75rem;
+  --trust-font-display: var(--font-trust-display), "Iowan Old Style", "Palatino Linotype", serif;
+  --trust-font-body: var(--font-trust-body), "Avenir Next", "Segoe UI", sans-serif;
+
+  min-height: 100dvh;
+  color: var(--trust-ink);
+  font-family: var(--trust-font-body);
+  background:
+    radial-gradient(1200px 700px at 12% -10%, rgba(15, 107, 92, 0.14), transparent 55%),
+    radial-gradient(900px 600px at 88% 0%, rgba(20, 32, 51, 0.1), transparent 50%),
+    linear-gradient(165deg, var(--trust-bg-1), var(--trust-bg-0));
+}
+
+.trust-root::before {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  opacity: 0.35;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.45'/%3E%3C/svg%3E");
+  mix-blend-mode: soft-light;
+  z-index: 0;
+}
+
+.trust-shell {
+  position: relative;
+  z-index: 1;
+}
+
+.trust-skip {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 50;
+  border-radius: 0.5rem;
+  background: var(--trust-elevated);
+  padding: 0.5rem 0.75rem;
+  color: var(--trust-ink);
+}
+
+.trust-skip:focus {
+  left: 0.75rem;
+  top: 0.75rem;
+}
+
+.trust-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--trust-accent);
+  animation: trust-caret 1s steps(1) infinite;
+}
+
+@keyframes trust-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+.trust-enter {
+  animation: trust-rise 420ms ease-out both;
+}
+
+.trust-stream-in {
+  animation: trust-rise 280ms ease-out both;
+}
+
+@keyframes trust-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trust-enter,
+  .trust-stream-in,
+  .trust-caret {
+    animation: none !important;
+  }
+}

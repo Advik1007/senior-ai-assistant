@@ -1,99 +1,86 @@
-# UNK AI
+# UNK AI + Trust AI
 
-UNK AI is a mobile-first accessibility app for older adults. It helps with
-family calling, voice conversation, and everyday services. Paid services are
-never completed unless an authorized provider API confirms them, and never
-without the user confirming twice.
+This repo hosts **UNK AI** (senior accessibility companion) and the new **Trust AI**
+chat slice — a personal work-organizing assistant with a local PyTorch path on
+Apple Silicon (MPS).
 
-## Stack (and why)
+## Trust AI (chat + local inference)
 
-- **Next.js (App Router) + TypeScript** — one project for the phone-sized
-  website and a secure backend. Later the same UI can be wrapped with
-  Capacitor for an app store build.
-- **Tailwind CSS + shadcn/ui** — fast layout, with large custom buttons on
-  top of simple UI primitives.
-- **On-device storage (for this first version)** — family contacts and
-  accessibility settings stay on the phone/browser. No PINs, OTPs, or CVVs.
-- **Web Speech API** — real listening and speaking in the browser. No call
-  recording.
-- **`tel:` links** — real phone calls on a phone. On a desktop they open
-  whatever calling app the computer has, if any.
+Product: own organizer AI (not a Gemini clone). Gemini is only a future bridge
+to Google after the user confirms. Student mode hooks exist; v1 ships the chat
+shell + precise plan/prioritize/clarify brain + local torch device wiring.
 
-Service files under `src/lib/services/` are **interfaces only**. They throw
-until you connect a licensed API. The app will not show a fake “Booked”
-state.
+### Architecture
 
-## Run locally
+| Piece | Role | Port |
+|-------|------|------|
+| Next.js app (`/trust`) | Brand-first chat UI, streaming proxy | `43141` |
+| `python -m trust_ai.server` | PyTorch + SmolLM2 on `device` from `device.py`; organizer replies | `8742` |
+
+**Reply source:** structured organizer (`trust_ai_v1` JSON + sharp markdown).
+**Model role:** `HuggingFaceTB/SmolLM2-135M-Instruct` loaded on MPS/CPU to prove
+the local inference path (affinity + warm generate). UI labels this clearly.
+
+### Run on Advik’s Mac
+
+```bash
+# 1) Python env (already created in this checkout)
+source venv/bin/activate
+pip install -r requirements-trust.txt   # first time / after pull
+
+# 2) Local inference (loads torch + MPS model — first run downloads weights)
+python -m trust_ai.server
+# → http://127.0.0.1:8742/health
+
+# 3) Web app (separate terminal)
+npm install
+npm run dev
+# → http://127.0.0.1:43141/trust
+```
+
+Health check:
+
+```bash
+curl -s http://127.0.0.1:8742/health | python -m json.tool
+```
+
+Expect `"device": "mps"` on Apple Silicon when Metal is available.
+
+### Organizer intelligence
+
+Replies follow `plan / prioritize / clarify / confirm-before-Google` patterns:
+ranked scores, time-boxed blocks with success criteria, ≤3 clarifying questions,
+and Calendar/Gmail payloads that stay `awaiting_confirmation` until the user
+confirms. Trust AI never claims Google success without a host bridge result.
+
+---
+
+## UNK AI (existing product)
+
+UNK AI is a mobile-first accessibility app for older adults. See screens under
+`/home`, `/family`, `/talk`, etc.
+
+### Stack
+
+- **Next.js (App Router) + TypeScript**
+- **Tailwind CSS + shadcn/ui**
+- Capacitor Android shell (see `ANDROID.md`)
+
+### Run UNK locally
 
 ```bash
 npm install
-npm run dev -- --port 43141 --hostname 127.0.0.1
+npm run dev
 ```
 
-Then open [http://127.0.0.1:43141](http://127.0.0.1:43141).
+Open [http://127.0.0.1:43141](http://127.0.0.1:43141).
 
-## Android app
+### Email (Gmail SMTP)
 
-UNK AI can run as an Android app (Capacitor WebView shell). See **[ANDROID.md](./ANDROID.md)** for setup, emulator, and APK build steps.
+Copy `.env.example` to `.env.local` and configure SMTP vars. Never commit secrets.
 
-For voice, use Chrome or Edge and allow the microphone. Add family phone
-numbers in **Settings** before calling.
+### Deploy
 
-## Email (Gmail SMTP)
-
-Copy `.env.example` to `.env.local` and configure:
-
-```env
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=hello.unkai@gmail.com
-SMTP_FROM="UNK AI <hello.unkai@gmail.com>"
-SMTP_PASS=
-CONTACT_EMAIL=
-APP_URL=http://127.0.0.1:43141
-```
-
-- `SMTP_PASS` is a 16-character [Gmail App Password](https://myaccount.google.com/apppasswords), not the normal Gmail password.
-- `CONTACT_EMAIL` receives messages submitted on the Help page.
-- `.env.local` is ignored by Git and must never be committed.
-
-Restart the development server after changing environment variables. To test
-each reusable template while the server is running:
-
-```bash
-curl -X POST http://127.0.0.1:43141/api/email/test \
-  -H "Content-Type: application/json" \
-  -d '{"kind":"welcome"}'
-
-curl -X POST http://127.0.0.1:43141/api/email/test \
-  -H "Content-Type: application/json" \
-  -d '{"kind":"password-reset"}'
-```
-
-The test endpoint is disabled in production.
-
-## Deploy frontend to Vercel
-
-UNK AI’s **frontend + API routes** run as one Next.js app on Vercel (not separate
-static hosting).
-
-1. Push this repo to GitHub.
-2. In [Vercel](https://vercel.com), import the repo (Framework: **Next.js**).
-3. Set environment variables (Production and Preview):
-   - `APP_URL` = `https://senior-ai-assistant-git-main-advik1007.vercel.app`
-   - `AUTH_SECRET`, `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
-   - Optional: `CONTACT_EMAIL`
-4. Redeploy after changing env vars.
-
-## Android app
-
-The Android shell loads the same Vercel frontend URL. See **[ANDROID.md](./ANDROID.md)**.
-
-## First version screens
-
-- Home — large buttons for talk, family, help, and services
-- Call family — confirm, then open the phone dialer
-- Help — UNK greets you and listens
-- Talk to UNK — voice plus typing
-- Settings — text size, language, voice speed, contrast, contacts
-- Service pages — forms that collect details, search through a server API, and require two confirmations. They stay **API connection required** until you add real credentials. Nothing is shown as booked without a provider confirmation id.
+Frontend + API routes deploy as one Next.js app on Vercel. Local Trust AI
+inference (`trust_ai.server`) is Mac-only for now — Vercel will not run the
+PyTorch process; point `TRUST_AI_INFER_URL` at a reachable host if needed.

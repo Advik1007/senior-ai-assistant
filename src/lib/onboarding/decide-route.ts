@@ -55,7 +55,9 @@ export function isMarketingPath(path: string): boolean {
     path.startsWith("/download/") ||
     path === "/install" ||
     path.startsWith("/install/") ||
-    path === "/grocery"
+    path === "/grocery" ||
+    path === "/trust" ||
+    path.startsWith("/trust/")
   );
 }
 
